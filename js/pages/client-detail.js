@@ -27,9 +27,9 @@ const ClientDetailPage = {
         isEdit: false,
         editingLoopId: null,
         mode: 'normal',
-        loopRule: 'time_based',
         normalAreas: [],
-        advancedAreas: []
+        advancedAreas: [],
+        singleTimeAreas: []
     },
     DAYS: [
         { key: 'mon', label: 'Mon' },
@@ -711,12 +711,21 @@ const ClientDetailPage = {
                 </div>
 
                 <div class="loop-list">
-                    ${loops.length > 0 ? loops.map(loop => `
+                    ${loops.length > 0 ? loops.map(loop => {
+                        let modeBadgeClass = 'normal';
+                        let modeBadgeText = 'Interval Based';
+                        if (loop.mode === 'advanced') {
+                            modeBadgeClass = 'advanced';
+                            modeBadgeText = 'Schedule Based (Option A)';
+                        } else if (loop.mode === 'single_time') {
+                            modeBadgeClass = 'single-time';
+                            modeBadgeText = 'Schedule Based (Option B)';
+                        }
+                        return `
                         <div class="loop-item" data-loop-id="${loop.id}">
                             <div class="loop-info">
                                 <span class="loop-name">${loop.name}</span>
-                                <span class="loop-mode-badge ${loop.mode === 'advanced' ? 'advanced' : 'normal'}">${loop.mode === 'advanced' ? 'Schedule Based' : 'Interval Based'}</span>
-                                ${loop.mode === 'advanced' ? `<span class="loop-rule-badge">${loop.loopRule === 'gap_between' ? 'Gap Based' : 'Time Slot'}</span>` : ''}
+                                <span class="loop-mode-badge ${modeBadgeClass}">${modeBadgeText}</span>
                             </div>
                             <div class="loop-actions">
                                 <button class="btn-icon-action" data-action="copy-loop" data-id="${loop.id}" title="Copy">📋</button>
@@ -724,7 +733,7 @@ const ClientDetailPage = {
                                 <button class="btn-icon-action" data-action="delete-loop" data-id="${loop.id}" title="Delete">🗑️</button>
                             </div>
                         </div>
-                    `).join('') : `
+                    `}).join('') : `
                         <div class="empty-state" style="margin-top: 100px;">
                             <div class="empty-state-icon">🔄</div>
                             <p>No loops available</p>
@@ -758,27 +767,22 @@ const ClientDetailPage = {
                             </div>
                             <div class="form-group">
                                 <label class="form-label">Loop Mode <span class="required">*</span></label>
-                                <div class="loop-mode-toggle">
+                                <div class="loop-mode-toggle three-options">
                                     <input type="radio" id="modeNormal" name="loopMode" value="normal" ${!isEdit || editLoop.mode === 'normal' ? 'checked' : ''}>
                                     <label for="modeNormal">Interval Based</label>
                                     <input type="radio" id="modeAdvanced" name="loopMode" value="advanced" ${isEdit && editLoop.mode === 'advanced' ? 'checked' : ''}>
-                                    <label for="modeAdvanced">Schedule Based</label>
+                                    <label for="modeAdvanced">Option A</label>
+                                    <input type="radio" id="modeSingleTime" name="loopMode" value="single_time" ${isEdit && editLoop.mode === 'single_time' ? 'checked' : ''}>
+                                    <label for="modeSingleTime">Option B</label>
                                 </div>
                                 <p class="field-hint" id="modeHint">Scans are expected at cumulative intervals after loop starts</p>
-                                <div id="loopRuleWrap" class="loop-rule-wrap ${!isEdit || editLoop.mode !== 'advanced' ? 'hidden' : ''}">
-                                    <label class="form-label">Schedule Type <span class="required">*</span></label>
-                                    <select class="form-select" id="loopRule">
-                                        <option value="time_based" ${!isEdit || editLoop.loopRule !== 'gap_between' ? 'selected' : ''}>Time Slot (Specific time windows)</option>
-                                        <option value="gap_between" ${isEdit && editLoop.loopRule === 'gap_between' ? 'selected' : ''}>Gap Based (Minimum gap between scans)</option>
-                                    </select>
-                                </div>
                             </div>
                         </div>
 
-                        <!-- Normal Mode Fields -->
-                        <div id="normalFields" class="loop-config-section ${isEdit && editLoop.mode === 'advanced' ? 'hidden' : ''}">
+                        <!-- Common Settings for Both Modes -->
+                        <div class="loop-config-section">
                             <div class="section-divider">
-                                <span>Interval Based Settings</span>
+                                <span>Loop Settings</span>
                             </div>
                             <div class="loop-config-row three-cols">
                                 <div class="form-group">
@@ -797,7 +801,10 @@ const ClientDetailPage = {
                                     <p class="field-hint">Tolerance window around expected scan time. e.g., 5 min buffer = scan valid 5 min early or late.</p>
                                 </div>
                             </div>
+                        </div>
 
+                        <!-- Normal Mode Fields -->
+                        <div id="normalFields" class="loop-config-section ${isEdit && editLoop.mode === 'advanced' ? 'hidden' : ''}">
                             <div class="section-divider">
                                 <span>Scan Sequence</span>
                                 <button class="btn btn-sm btn-outline" type="button" id="addAreaNormalBtn">+ Add New</button>
@@ -846,20 +853,33 @@ const ClientDetailPage = {
                             </div>
                         </div>
 
-                        <!-- Advanced Mode Fields -->
+                        <!-- Option A Mode Fields (Time Slots) -->
                         <div id="advancedFields" class="loop-config-section ${!isEdit || editLoop.mode !== 'advanced' ? 'hidden' : ''}">
                             <div class="section-divider">
-                                <span>Schedule Based Settings</span>
+                                <span>Option A Settings</span>
                                 <button class="btn btn-sm btn-outline" type="button" id="addAreaAdvancedBtn">+ Add New</button>
                             </div>
-                            <p class="loop-hint" id="ruleHelp">
-                                <strong>Time Slot:</strong> Define specific time windows for each day when scans should occur.
-                            </p>
+                            <p class="field-hint section-hint">Define multiple time slots for each day when scans should occur. Enable a day and add time windows.</p>
                             <div id="advancedAreaList">
                                 <!-- Dynamic area cards will be inserted here -->
                             </div>
                             <div id="noAreasAdvanced" class="no-areas-message">
                                 Click "+ Add New" to configure scan schedule by day
+                            </div>
+                        </div>
+
+                        <!-- Option B Mode Fields (Single Time Window per Day) -->
+                        <div id="singleTimeFields" class="loop-config-section ${!isEdit || editLoop.mode !== 'single_time' ? 'hidden' : ''}">
+                            <div class="section-divider">
+                                <span>Option B Settings</span>
+                                <button class="btn btn-sm btn-outline" type="button" id="addAreaSingleTimeBtn">+ Add New</button>
+                            </div>
+                            <p class="field-hint section-hint">Set a single time window for each day when scan should occur. Enable a day and set the time range.</p>
+                            <div id="singleTimeAreaList">
+                                <!-- Dynamic area cards will be inserted here -->
+                            </div>
+                            <div id="noAreasSingleTime" class="no-areas-message">
+                                Click "+ Add New" to configure fixed scan times by day
                             </div>
                         </div>
                     </div>
@@ -888,9 +908,9 @@ const ClientDetailPage = {
             isEdit: false,
             editingLoopId: null,
             mode: 'normal',
-            loopRule: 'time_based',
             normalAreas: [],
-            advancedAreas: []
+            advancedAreas: [],
+            singleTimeAreas: []
         };
     },
 
@@ -898,9 +918,9 @@ const ClientDetailPage = {
         this.loopConfigState.isEdit = true;
         this.loopConfigState.editingLoopId = loop.id;
         this.loopConfigState.mode = loop.mode || 'normal';
-        this.loopConfigState.loopRule = loop.loopRule || 'time_based';
         this.loopConfigState.normalAreas = loop.normalAreas ? JSON.parse(JSON.stringify(loop.normalAreas)) : [];
         this.loopConfigState.advancedAreas = loop.advancedAreas ? JSON.parse(JSON.stringify(loop.advancedAreas)) : [];
+        this.loopConfigState.singleTimeAreas = loop.singleTimeAreas ? JSON.parse(JSON.stringify(loop.singleTimeAreas)) : [];
     },
 
     createAdvancedAreaConfig(areaId, areaName) {
@@ -909,9 +929,20 @@ const ClientDetailPage = {
         this.DAYS.forEach(d => {
             dayConfig[d.key] = {
                 enabled: false,
-                slots: [],
-                gapValue: 10,
-                gapUnit: 'minutes' // Options: 'hours' or 'minutes'
+                slots: []
+            };
+        });
+        return { id, areaId, areaName, dayConfig };
+    },
+
+    createSingleTimeAreaConfig(areaId, areaName) {
+        const id = this.uid();
+        const dayConfig = {};
+        this.DAYS.forEach(d => {
+            dayConfig[d.key] = {
+                enabled: false,
+                startTime: '09:00',
+                endTime: '17:00'
             };
         });
         return { id, areaId, areaName, dayConfig };
@@ -983,16 +1014,7 @@ const ClientDetailPage = {
         if (!container) return;
 
         const areas = this.loopConfigState.advancedAreas;
-        const rule = this.loopConfigState.loopRule;
         const availableAreas = this.getAvailableAreasForLocation();
-
-        // Update rule help text
-        const ruleHelp = document.getElementById('ruleHelp');
-        if (ruleHelp) {
-            ruleHelp.innerHTML = rule === 'gap_between'
-                ? '<strong>Gap Based:</strong> Set minimum time gap between consecutive scans for each day.'
-                : '<strong>Time Slot:</strong> Define specific time windows (start & end) when scans should occur for each day.';
-        }
 
         if (areas.length === 0) {
             container.innerHTML = '';
@@ -1001,7 +1023,6 @@ const ClientDetailPage = {
         }
 
         noAreasMsg?.classList.add('hidden');
-        const ruleText = rule === 'gap_between' ? 'Gap Between Scan' : 'Time Based';
 
         container.innerHTML = areas.map(area => `
             <div class="advanced-area-card" data-area-id="${area.id}">
@@ -1013,13 +1034,12 @@ const ClientDetailPage = {
                         </select>
                     </div>
                     <div class="advanced-area-right">
-                        <span class="loop-rule-badge">${ruleText}</span>
                         <button class="btn btn-sm btn-danger remove-advanced-area" data-area-id="${area.id}" type="button">Remove</button>
                     </div>
                 </div>
                 <div class="days-scroll">
                     <div class="days-grid">
-                        ${this.DAYS.map(d => this.renderDayCard(area, d.key, d.label, rule)).join('')}
+                        ${this.DAYS.map(d => this.renderDayCard(area, d.key, d.label)).join('')}
                     </div>
                 </div>
             </div>
@@ -1028,52 +1048,8 @@ const ClientDetailPage = {
         this.bindAdvancedAreaEvents();
     },
 
-    renderDayCard(area, dayKey, dayLabel, rule) {
+    renderDayCard(area, dayKey, dayLabel) {
         const cfg = area.dayConfig[dayKey];
-
-        const timeBasedHTML = `
-            <div class="slot-box">
-                <div class="slot-header">
-                    <span>Time Slots</span>
-                    <span class="slot-count">${(cfg.slots?.length || 0)} slot(s)</span>
-                </div>
-                <div class="slots-list" data-area-id="${area.id}" data-day="${dayKey}">
-                    ${(cfg.slots || []).map((slot, idx) => `
-                        <div class="slot-row" data-slot-idx="${idx}">
-                            <div class="slot-row-inputs">
-                                <input type="time" class="slot-start" value="${slot.start || '09:00'}" title="Start Time">
-                                <span class="slot-separator">to</span>
-                                <input type="time" class="slot-end" value="${slot.end || '09:15'}" title="End Time">
-                                <button class="delete-slot" type="button" title="Delete Slot">🗑️</button>
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
-                <button class="btn btn-xs btn-outline add-slot-btn" data-area-id="${area.id}" data-day="${dayKey}" type="button">+ Add Slot</button>
-            </div>
-        `;
-
-        const gapHTML = `
-            <div class="gap-box">
-                <div class="slot-header">
-                    <span>Minimum Gap</span>
-                </div>
-                <div class="gap-config">
-                    <div class="form-group-sm">
-                        <label>Gap Value</label>
-                        <input type="number" class="gap-value" data-area-id="${area.id}" data-day="${dayKey}" min="0" value="${cfg.gapValue || 10}">
-                    </div>
-                    <div class="form-group-sm">
-                        <label>Unit</label>
-                        <select class="gap-unit" data-area-id="${area.id}" data-day="${dayKey}">
-                            <option value="hours" ${cfg.gapUnit === 'hours' ? 'selected' : ''}>Hours</option>
-                            <option value="minutes" ${cfg.gapUnit !== 'hours' ? 'selected' : ''}>Minutes</option>
-                        </select>
-                    </div>
-                </div>
-                <p class="gap-hint">Example: 10 minutes blocks immediate second scan.</p>
-            </div>
-        `;
 
         return `
             <div class="day-card ${!cfg.enabled ? 'day-disabled' : ''}" data-area-id="${area.id}" data-day="${dayKey}">
@@ -1081,9 +1057,161 @@ const ClientDetailPage = {
                     <span class="day-title">${dayLabel}</span>
                     <input type="checkbox" class="day-enable-checkbox" ${cfg.enabled ? 'checked' : ''}>
                 </div>
-                ${rule === 'gap_between' ? gapHTML : timeBasedHTML}
+                <div class="slot-box">
+                    <div class="slot-header">
+                        <span>Time Slots</span>
+                        <span class="slot-count">${(cfg.slots?.length || 0)} slot(s)</span>
+                    </div>
+                    <div class="slots-list" data-area-id="${area.id}" data-day="${dayKey}">
+                        ${(cfg.slots || []).map((slot, idx) => `
+                            <div class="slot-row" data-slot-idx="${idx}">
+                                <div class="slot-row-inputs">
+                                    <input type="time" class="slot-start" value="${slot.start || '09:00'}" title="Start Time">
+                                    <span class="slot-separator">to</span>
+                                    <input type="time" class="slot-end" value="${slot.end || '09:15'}" title="End Time">
+                                    <button class="delete-slot" type="button" title="Delete Slot">🗑️</button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <button class="btn btn-xs btn-outline add-slot-btn" data-area-id="${area.id}" data-day="${dayKey}" type="button">+ Add Slot</button>
+                </div>
             </div>
         `;
+    },
+
+    // ========== SINGLE TIME (FIXED TIME) MODE ==========
+    renderSingleTimeAreasList() {
+        const container = document.getElementById('singleTimeAreaList');
+        const noAreasMsg = document.getElementById('noAreasSingleTime');
+        if (!container) return;
+
+        const areas = this.loopConfigState.singleTimeAreas;
+        const availableAreas = this.getAvailableAreasForLocation();
+
+        if (areas.length === 0) {
+            container.innerHTML = '';
+            noAreasMsg?.classList.remove('hidden');
+            return;
+        }
+
+        noAreasMsg?.classList.add('hidden');
+
+        container.innerHTML = areas.map(area => `
+            <div class="advanced-area-card" data-area-id="${area.id}">
+                <div class="advanced-area-header">
+                    <div class="advanced-area-left">
+                        <span>Area:</span>
+                        <select class="form-select area-select-single-time" data-area-id="${area.id}">
+                            ${availableAreas.map(a => `<option value="${a.id}" ${a.id === area.areaId ? 'selected' : ''}>${a.name}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="advanced-area-right">
+                        <button class="btn btn-sm btn-danger remove-single-time-area" data-area-id="${area.id}" type="button">Remove</button>
+                    </div>
+                </div>
+                <div class="days-scroll">
+                    <div class="days-grid">
+                        ${this.DAYS.map(d => this.renderSingleTimeDayCard(area, d.key, d.label)).join('')}
+                    </div>
+                </div>
+            </div>
+        `).join('');
+
+        this.bindSingleTimeAreaEvents();
+    },
+
+    renderSingleTimeDayCard(area, dayKey, dayLabel) {
+        const cfg = area.dayConfig[dayKey];
+
+        return `
+            <div class="day-card ${!cfg.enabled ? 'day-disabled' : ''}" data-area-id="${area.id}" data-day="${dayKey}">
+                <div class="day-header">
+                    <span class="day-title">${dayLabel}</span>
+                    <input type="checkbox" class="single-time-day-checkbox" ${cfg.enabled ? 'checked' : ''}>
+                </div>
+                <div class="single-time-box">
+                    <div class="slot-header">
+                        <span>Time Window</span>
+                    </div>
+                    <div class="single-time-input-wrap">
+                        <input type="time" class="form-input single-time-start" value="${cfg.startTime || '09:00'}" ${!cfg.enabled ? 'disabled' : ''}>
+                        <span class="time-separator">to</span>
+                        <input type="time" class="form-input single-time-end" value="${cfg.endTime || '17:00'}" ${!cfg.enabled ? 'disabled' : ''}>
+                    </div>
+                </div>
+            </div>
+        `;
+    },
+
+    bindSingleTimeAreaEvents() {
+        const container = document.getElementById('singleTimeAreaList');
+        if (!container) return;
+
+        // Area select change
+        container.querySelectorAll('.area-select-single-time').forEach(select => {
+            select.addEventListener('change', (e) => {
+                const areaId = e.target.getAttribute('data-area-id');
+                const area = this.loopConfigState.singleTimeAreas.find(a => a.id === areaId);
+                if (area) {
+                    area.areaId = parseInt(e.target.value);
+                    area.areaName = e.target.options[e.target.selectedIndex].text;
+                }
+            });
+        });
+
+        // Remove area
+        container.querySelectorAll('.remove-single-time-area').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const areaId = e.target.getAttribute('data-area-id');
+                this.loopConfigState.singleTimeAreas = this.loopConfigState.singleTimeAreas.filter(a => a.id !== areaId);
+                this.renderSingleTimeAreasList();
+            });
+        });
+
+        // Day enable checkbox
+        container.querySelectorAll('.single-time-day-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', (e) => {
+                const dayCard = e.target.closest('.day-card');
+                const areaId = dayCard.getAttribute('data-area-id');
+                const dayKey = dayCard.getAttribute('data-day');
+                const area = this.loopConfigState.singleTimeAreas.find(a => a.id === areaId);
+                if (area) {
+                    area.dayConfig[dayKey].enabled = e.target.checked;
+                    dayCard.classList.toggle('day-disabled', !e.target.checked);
+                    const startInput = dayCard.querySelector('.single-time-start');
+                    const endInput = dayCard.querySelector('.single-time-end');
+                    if (startInput) startInput.disabled = !e.target.checked;
+                    if (endInput) endInput.disabled = !e.target.checked;
+                }
+            });
+        });
+
+        // Start time input change
+        container.querySelectorAll('.single-time-start').forEach(input => {
+            input.addEventListener('change', (e) => {
+                const dayCard = e.target.closest('.day-card');
+                const areaId = dayCard.getAttribute('data-area-id');
+                const dayKey = dayCard.getAttribute('data-day');
+                const area = this.loopConfigState.singleTimeAreas.find(a => a.id === areaId);
+                if (area) {
+                    area.dayConfig[dayKey].startTime = e.target.value;
+                }
+            });
+        });
+
+        // End time input change
+        container.querySelectorAll('.single-time-end').forEach(input => {
+            input.addEventListener('change', (e) => {
+                const dayCard = e.target.closest('.day-card');
+                const areaId = dayCard.getAttribute('data-area-id');
+                const dayKey = dayCard.getAttribute('data-day');
+                const area = this.loopConfigState.singleTimeAreas.find(a => a.id === areaId);
+                if (area) {
+                    area.dayConfig[dayKey].endTime = e.target.value;
+                }
+            });
+        });
     },
 
     bindAdvancedAreaEvents() {
@@ -1166,24 +1294,6 @@ const ClientDetailPage = {
         });
         container.querySelectorAll('.slot-end').forEach(input => {
             input.addEventListener('change', (e) => this.updateSlotValue(e.target, 'end'));
-        });
-
-        // Gap inputs
-        container.querySelectorAll('.gap-value').forEach(input => {
-            input.addEventListener('input', (e) => {
-                const areaId = e.target.getAttribute('data-area-id');
-                const dayKey = e.target.getAttribute('data-day');
-                const area = this.loopConfigState.advancedAreas.find(a => a.id === areaId);
-                if (area) area.dayConfig[dayKey].gapValue = parseInt(e.target.value) || 0;
-            });
-        });
-        container.querySelectorAll('.gap-unit').forEach(select => {
-            select.addEventListener('change', (e) => {
-                const areaId = e.target.getAttribute('data-area-id');
-                const dayKey = e.target.getAttribute('data-day');
-                const area = this.loopConfigState.advancedAreas.find(a => a.id === areaId);
-                if (area) area.dayConfig[dayKey].gapUnit = e.target.value;
-            });
         });
 
         // Apply disabled state to inputs in disabled day cards
@@ -1654,16 +1764,21 @@ const ClientDetailPage = {
 
                     if (loop.mode === 'advanced') {
                         document.getElementById('modeAdvanced').checked = true;
-                        document.getElementById('loopRuleWrap').classList.remove('hidden');
                         document.getElementById('normalFields').classList.add('hidden');
                         document.getElementById('advancedFields').classList.remove('hidden');
-                        document.getElementById('loopRule').value = loop.loopRule || 'time_based';
+                        document.getElementById('singleTimeFields').classList.add('hidden');
+                    } else if (loop.mode === 'single_time') {
+                        document.getElementById('modeSingleTime').checked = true;
+                        document.getElementById('normalFields').classList.add('hidden');
+                        document.getElementById('advancedFields').classList.add('hidden');
+                        document.getElementById('singleTimeFields').classList.remove('hidden');
                     } else {
                         document.getElementById('modeNormal').checked = true;
                     }
 
                     this.renderNormalAreasTable();
                     this.renderAdvancedAreasList();
+                    this.renderSingleTimeAreasList();
                     this.bindLoopConfigEvents();
                 }
             });
@@ -1771,29 +1886,33 @@ const ClientDetailPage = {
     },
 
     bindLoopConfigEvents() {
-        // Mode toggle (Interval Based / Schedule Based)
+        // Mode toggle (Interval Based / Option A / Option B)
         document.getElementById('modeNormal')?.addEventListener('change', () => {
             this.loopConfigState.mode = 'normal';
-            document.getElementById('loopRuleWrap').classList.add('hidden');
             document.getElementById('normalFields').classList.remove('hidden');
             document.getElementById('advancedFields').classList.add('hidden');
+            document.getElementById('singleTimeFields').classList.add('hidden');
             document.getElementById('modeHint').textContent = 'Scans are expected at cumulative intervals after loop starts';
         });
 
         document.getElementById('modeAdvanced')?.addEventListener('change', () => {
             this.loopConfigState.mode = 'advanced';
-            document.getElementById('loopRuleWrap').classList.remove('hidden');
             document.getElementById('normalFields').classList.add('hidden');
             document.getElementById('advancedFields').classList.remove('hidden');
-            document.getElementById('modeHint').textContent = 'Define specific time slots or minimum gaps for each day of the week';
+            document.getElementById('singleTimeFields').classList.add('hidden');
+            document.getElementById('modeHint').textContent = 'Option A: Define multiple time slots for each day when scans should occur';
             this.renderAdvancedAreasList();
         });
 
-        // Loop Rule change
-        document.getElementById('loopRule')?.addEventListener('change', (e) => {
-            this.loopConfigState.loopRule = e.target.value;
-            this.renderAdvancedAreasList();
+        document.getElementById('modeSingleTime')?.addEventListener('change', () => {
+            this.loopConfigState.mode = 'single_time';
+            document.getElementById('normalFields').classList.add('hidden');
+            document.getElementById('advancedFields').classList.add('hidden');
+            document.getElementById('singleTimeFields').classList.remove('hidden');
+            document.getElementById('modeHint').textContent = 'Option B: Set a single time window for each day when scan should occur';
+            this.renderSingleTimeAreasList();
         });
+
 
         // Info icon tooltip toggle
         const infoBtn = document.getElementById('intervalInfoBtn');
@@ -1866,6 +1985,21 @@ const ClientDetailPage = {
             );
             this.renderAdvancedAreasList();
         });
+
+        // Add Area for Single Time mode - directly add first area
+        document.getElementById('addAreaSingleTimeBtn')?.addEventListener('click', () => {
+            const availableAreas = this.getAvailableAreasForLocation();
+            if (availableAreas.length === 0) {
+                App.showToast('No areas available for this location', 'warning');
+                return;
+            }
+            // Get the first area from the list
+            const firstArea = availableAreas[0];
+            this.loopConfigState.singleTimeAreas.push(
+                this.createSingleTimeAreaConfig(firstArea.id, firstArea.name)
+            );
+            this.renderSingleTimeAreasList();
+        });
     },
 
     handleSaveLoopConfig() {
@@ -1888,6 +2022,11 @@ const ClientDetailPage = {
             return;
         }
 
+        if (mode === 'single_time' && this.loopConfigState.singleTimeAreas.length === 0) {
+            App.showToast('Please add at least one area', 'error');
+            return;
+        }
+
         const loopData = {
             id: this.loopConfigState.isEdit ? this.loopConfigState.editingLoopId : Date.now(),
             name: loopName,
@@ -1904,9 +2043,10 @@ const ClientDetailPage = {
 
         if (mode === 'normal') {
             loopData.normalAreas = this.loopConfigState.normalAreas;
-        } else {
-            loopData.loopRule = this.loopConfigState.loopRule;
+        } else if (mode === 'advanced') {
             loopData.advancedAreas = this.loopConfigState.advancedAreas;
+        } else if (mode === 'single_time') {
+            loopData.singleTimeAreas = this.loopConfigState.singleTimeAreas;
         }
 
         if (this.loopConfigState.isEdit) {

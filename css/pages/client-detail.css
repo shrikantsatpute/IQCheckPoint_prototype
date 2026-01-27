@@ -455,6 +455,10 @@
     background: var(--bg-white);
 }
 
+.loop-mode-toggle.three-options {
+    flex-wrap: wrap;
+}
+
 .loop-mode-toggle input {
     display: none;
 }
@@ -468,11 +472,67 @@
     user-select: none;
     font-weight: 600;
     transition: all 0.2s;
+    border-right: 1px solid var(--border-color);
+}
+
+.loop-mode-toggle label:last-of-type {
+    border-right: none;
 }
 
 .loop-mode-toggle input:checked + label {
     background: var(--primary-color);
     color: white;
+}
+
+/* Single Time Input Box */
+.single-time-box {
+    background: #f8f9fa;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 12px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.single-time-input-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.single-time-input-wrap .time-separator {
+    font-size: 13px;
+    color: #666;
+    font-weight: 500;
+    flex-shrink: 0;
+}
+
+.single-time-start,
+.single-time-end {
+    flex: 1;
+    padding: 10px 6px;
+    font-size: 14px;
+    text-align: center;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: #fff;
+    min-width: 0;
+}
+
+.single-time-start:focus,
+.single-time-end:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.1);
+}
+
+.single-time-start:disabled,
+.single-time-end:disabled {
+    background: #f1f1f1;
+    color: #999;
 }
 
 .loop-rule-wrap {
@@ -1038,6 +1098,11 @@
 .loop-mode-badge.advanced {
     background: #f3e5f5;
     color: #7b1fa2;
+}
+
+.loop-mode-badge.single-time {
+    background: #e8f5e9;
+    color: #2e7d32;
 }
 
 .loop-rule-badge {
