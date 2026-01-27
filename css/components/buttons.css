@@ -1,0 +1,112 @@
+/* ========================================
+   Buttons
+   ======================================== */
+.btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s;
+}
+
+.btn-primary {
+    background: var(--primary-color);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: var(--primary-hover);
+}
+
+.btn-secondary {
+    background: var(--bg-light);
+    color: var(--text-dark);
+    border: 1px solid var(--border-color);
+}
+
+.btn-secondary:hover {
+    background: var(--border-color);
+}
+
+.btn-success {
+    background: var(--success-color);
+    color: white;
+}
+
+.btn-outline {
+    background: transparent;
+    color: var(--primary-color);
+    border: 1px solid var(--primary-color);
+}
+
+.btn-outline:hover {
+    background: var(--primary-color);
+    color: white;
+}
+
+/* Button Sizes */
+.btn-sm {
+    padding: 6px 12px;
+    font-size: 12px;
+}
+
+/* Icon Buttons */
+.btn-icon {
+    background: var(--bg-white);
+    border: 1px solid var(--border-color);
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: 16px;
+}
+
+.btn-icon:hover {
+    background: var(--bg-light);
+}
+
+.btn-icon-action {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 5px;
+    border-radius: 4px;
+    transition: background 0.2s;
+}
+
+.btn-icon-action:hover {
+    background: var(--bg-light);
+}
+
+.btn-icon-sm {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 5px;
+    border-radius: 4px;
+}
+
+.btn-icon-sm:hover {
+    background: var(--bg-light);
+}
+
+/* Pagination Buttons */
+.btn-pagination {
+    background: var(--bg-white);
+    border: 1px solid var(--border-color);
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.btn-pagination:hover:not(:disabled) {
+    background: var(--bg-light);
+}
+
+.btn-pagination:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}

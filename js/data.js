@@ -429,8 +429,7 @@ const AppData = {
     // Area Detail Sidebar Menu
     areaDetailSidebar: [
         { id: "general", label: "General", icon: "ℹ️" },
-        { id: "assign-form", label: "Assign Form", icon: "📝" },
-        { id: "loop", label: "Loop", icon: "🔄", isNew: true }
+        { id: "assign-form", label: "Assign Form", icon: "📝" }
     ],
 
     // Area Loop Data (assigned Master Scans for areas)

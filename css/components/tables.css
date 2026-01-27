@@ -1,0 +1,91 @@
+/* ========================================
+   Tables
+   ======================================== */
+.table-container {
+    overflow-x: auto;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.table th,
+.table td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.table th {
+    background: var(--bg-light);
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.table td {
+    font-size: 14px;
+}
+
+.table tr:hover {
+    background: #fafafa;
+}
+
+/* Sort Icon */
+.sort-icon {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-left: 5px;
+}
+
+/* Actions Cell */
+.actions-cell {
+    display: flex;
+    gap: 8px;
+}
+
+/* ========================================
+   Pagination
+   ======================================== */
+.pagination-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 20px;
+    padding: 15px 0;
+}
+
+.pagination-info {
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.pagination-controls {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.pagination-controls-left {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.pagination-right {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.page-number {
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 13px;
+}
+
+.page-number.active {
+    background: var(--primary-color);
+    color: white;
+}

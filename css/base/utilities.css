@@ -1,0 +1,83 @@
+/* ========================================
+   Utility Classes
+   ======================================== */
+.text-primary { color: var(--primary-color); }
+.text-success { color: var(--success-color); }
+.text-muted { color: var(--text-muted); }
+.mt-20 { margin-top: 20px; }
+.mb-20 { margin-bottom: 20px; }
+.flex { display: flex; }
+.gap-10 { gap: 10px; }
+.gap-20 { gap: 20px; }
+
+.color-primary { color: var(--primary-color); }
+.color-success { color: var(--success-color); }
+.color-dark { color: var(--text-dark); }
+
+/* Loading & Error States */
+.loading {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-muted);
+}
+
+.error-message {
+    background: #fee;
+    color: #c00;
+    padding: 15px;
+    border-radius: var(--radius-sm);
+    text-align: center;
+}
+
+.no-data {
+    text-align: center;
+    padding: 30px;
+    color: var(--text-muted);
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+}
+
+.empty-state-icon {
+    font-size: 64px;
+    margin-bottom: 15px;
+    opacity: 0.5;
+}
+
+.empty-state p {
+    color: var(--text-muted);
+    font-size: 16px;
+}
+
+/* Links */
+.link-primary {
+    color: var(--primary-color);
+    text-decoration: none;
+}
+
+.link-primary:hover {
+    text-decoration: underline;
+}
+
+/* Required Asterisk */
+.required {
+    color: #e74c3c;
+}
+
+/* Alert Info */
+.alert-info {
+    background: #e8f4fd;
+    border: 1px solid #b8daff;
+    border-radius: var(--radius-sm);
+    padding: 15px;
+    margin-top: 15px;
+    color: #0c5460;
+}
+
+.alert-info p {
+    margin: 0;
+    font-size: 13px;
+}

@@ -22,6 +22,24 @@ const ClientDetailPage = {
     selectedArea: null,
     areaSidebarItem: 'general',
     areaFilter: 'active',
+    // Loop Configuration State
+    loopConfigState: {
+        isEdit: false,
+        editingLoopId: null,
+        mode: 'normal',
+        loopRule: 'time_based',
+        normalAreas: [],
+        advancedAreas: []
+    },
+    DAYS: [
+        { key: 'mon', label: 'Mon' },
+        { key: 'tue', label: 'Tue' },
+        { key: 'wed', label: 'Wed' },
+        { key: 'thu', label: 'Thu' },
+        { key: 'fri', label: 'Fri' },
+        { key: 'sat', label: 'Sat' },
+        { key: 'sun', label: 'Sun' }
+    ],
 
     init() {
         this.container = document.getElementById('pageContent');
@@ -684,7 +702,6 @@ const ClientDetailPage = {
 
     renderLoopContent() {
         const loops = this.loopsData || [];
-        const availableScans = this.getAvailableScans();
 
         return `
             <div class="loop-section">
@@ -696,10 +713,14 @@ const ClientDetailPage = {
                 <div class="loop-list">
                     ${loops.length > 0 ? loops.map(loop => `
                         <div class="loop-item" data-loop-id="${loop.id}">
-                            <span class="loop-name">${loop.name}</span>
+                            <div class="loop-info">
+                                <span class="loop-name">${loop.name}</span>
+                                <span class="loop-mode-badge ${loop.mode === 'advanced' ? 'advanced' : 'normal'}">${loop.mode === 'advanced' ? 'Schedule Based' : 'Interval Based'}</span>
+                                ${loop.mode === 'advanced' ? `<span class="loop-rule-badge">${loop.loopRule === 'gap_between' ? 'Gap Based' : 'Time Slot'}</span>` : ''}
+                            </div>
                             <div class="loop-actions">
                                 <button class="btn-icon-action" data-action="copy-loop" data-id="${loop.id}" title="Copy">📋</button>
-                                <button class="btn-icon-action" data-action="view-loop" data-id="${loop.id}" title="View">👁️</button>
+                                <button class="btn-icon-action" data-action="edit-loop" data-id="${loop.id}" title="Edit">✏️</button>
                                 <button class="btn-icon-action" data-action="delete-loop" data-id="${loop.id}" title="Delete">🗑️</button>
                             </div>
                         </div>
@@ -712,44 +733,478 @@ const ClientDetailPage = {
                 </div>
             </div>
 
-            <!-- Add Loop Modal -->
-            <div class="modal-overlay" id="addLoopModal">
-                <div class="modal modal-lg">
+            <!-- Loop Configuration Modal -->
+            ${this.renderLoopConfigModal()}
+        `;
+    },
+
+    renderLoopConfigModal(editLoop = null) {
+        const isEdit = editLoop !== null;
+        const modalTitle = isEdit ? 'Edit Loop Configuration' : 'Loop Configuration';
+
+        return `
+            <div class="modal-overlay" id="loopConfigModal">
+                <div class="modal modal-xl">
                     <div class="modal-header">
-                        <h3>Assign Master Scan Loop</h3>
-                        <span class="modal-close" data-modal="addLoopModal">&times;</span>
+                        <h3>${modalTitle}</h3>
+                        <span class="modal-close" data-modal="loopConfigModal">&times;</span>
                     </div>
-                    <div class="modal-body">
-                        <div class="form-group">
-                            <label class="form-label">Select Master Scan Loop(s) <span class="required">*</span></label>
-                            <p class="form-note">Select one or more Master Scans to assign to this location</p>
-                            ${availableScans.length > 0 ? `
-                                <div class="scan-checkbox-list">
-                                    ${availableScans.map(scan => `
-                                        <label class="scan-checkbox-item">
-                                            <input type="checkbox" class="scan-checkbox" value="${scan.id}" data-name="${scan.name}" data-frequency="${scan.frequency}">
-                                            <span class="scan-checkbox-info">
-                                                <span class="scan-checkbox-name">${scan.name}</span>
-                                                <span class="scan-checkbox-freq">${scan.frequency}</span>
-                                            </span>
-                                        </label>
-                                    `).join('')}
+                    <div class="modal-body loop-config-body">
+                        <!-- Basic Info -->
+                        <div class="loop-config-row">
+                            <div class="form-group">
+                                <label class="form-label">Loop Name <span class="required">*</span></label>
+                                <input type="text" class="form-input" id="loopName" value="${isEdit ? editLoop.name : ''}" placeholder="Enter loop name">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Loop Mode <span class="required">*</span></label>
+                                <div class="loop-mode-toggle">
+                                    <input type="radio" id="modeNormal" name="loopMode" value="normal" ${!isEdit || editLoop.mode === 'normal' ? 'checked' : ''}>
+                                    <label for="modeNormal">Interval Based</label>
+                                    <input type="radio" id="modeAdvanced" name="loopMode" value="advanced" ${isEdit && editLoop.mode === 'advanced' ? 'checked' : ''}>
+                                    <label for="modeAdvanced">Schedule Based</label>
                                 </div>
-                            ` : `
-                                <div class="alert-info">
-                                    <p>No available Master Scans to assign. All scans are already assigned to this location or no active scans exist.</p>
-                                    <p style="margin-top: 10px;"><a href="scan-master.html" class="link-primary">Go to Scan Master</a> to create new scans.</p>
+                                <p class="field-hint" id="modeHint">Scans are expected at cumulative intervals after loop starts</p>
+                                <div id="loopRuleWrap" class="loop-rule-wrap ${!isEdit || editLoop.mode !== 'advanced' ? 'hidden' : ''}">
+                                    <label class="form-label">Schedule Type <span class="required">*</span></label>
+                                    <select class="form-select" id="loopRule">
+                                        <option value="time_based" ${!isEdit || editLoop.loopRule !== 'gap_between' ? 'selected' : ''}>Time Slot (Specific time windows)</option>
+                                        <option value="gap_between" ${isEdit && editLoop.loopRule === 'gap_between' ? 'selected' : ''}>Gap Based (Minimum gap between scans)</option>
+                                    </select>
                                 </div>
-                            `}
+                            </div>
+                        </div>
+
+                        <!-- Normal Mode Fields -->
+                        <div id="normalFields" class="loop-config-section ${isEdit && editLoop.mode === 'advanced' ? 'hidden' : ''}">
+                            <div class="section-divider">
+                                <span>Interval Based Settings</span>
+                            </div>
+                            <div class="loop-config-row three-cols">
+                                <div class="form-group">
+                                    <label class="form-label">Loop Multiple <span class="required">*</span></label>
+                                    <input type="number" class="form-input" id="loopMultiple" min="0" value="${isEdit ? (editLoop.loopMultiple || 1) : 1}">
+                                    <p class="field-hint">How many times this loop can repeat in a shift. 0 = runs once, 1+ = can restart after completion.</p>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Reward Point</label>
+                                    <input type="number" class="form-input" id="rewardPoint" min="0" value="${isEdit ? (editLoop.rewardPoint || 10) : 10}">
+                                    <p class="field-hint">Points awarded to employee for each valid scan completed within the allowed time window.</p>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Loop Buffer (minutes)</label>
+                                    <input type="number" class="form-input" id="loopBuffer" min="0" value="${isEdit ? (editLoop.loopBuffer || 5) : 5}">
+                                    <p class="field-hint">Tolerance window around expected scan time. e.g., 5 min buffer = scan valid 5 min early or late.</p>
+                                </div>
+                            </div>
+
+                            <div class="section-divider">
+                                <span>Scan Sequence</span>
+                                <button class="btn btn-sm btn-outline" type="button" id="addAreaNormalBtn">+ Add New</button>
+                            </div>
+                            <p class="field-hint section-hint">Define the order of scans and when each should occur after the loop starts.</p>
+
+                            <div class="areas-table-container">
+                                <table class="table areas-table" id="normalAreasTable">
+                                    <thead>
+                                        <tr>
+                                            <th style="width:45%;">Area (Scan Point) <span class="required">*</span></th>
+                                            <th style="width:40%;">
+                                                <div class="th-with-info">
+                                                    <span>Loop Interval (minutes)</span>
+                                                    <button type="button" class="info-icon" id="intervalInfoBtn" title="Click for example">i</button>
+                                                    <div class="info-tooltip" id="intervalInfoTooltip">
+                                                        <div class="info-tooltip-header">
+                                                            <strong>How Loop Interval Works</strong>
+                                                            <button type="button" class="info-tooltip-close" id="intervalInfoClose">×</button>
+                                                        </div>
+                                                        <div class="info-tooltip-body">
+                                                            <p>Each interval is <strong>cumulative</strong> from when the loop starts.</p>
+                                                            <div class="info-example">
+                                                                <strong>Example:</strong> Loop starts at 9:00 AM<br>
+                                                                <table class="info-example-table">
+                                                                    <tr><td>Area A</td><td>5 min</td><td>→ 9:05 AM</td></tr>
+                                                                    <tr><td>Area B</td><td>12 min</td><td>→ 9:17 AM (5+12)</td></tr>
+                                                                    <tr><td>Area C</td><td>19 min</td><td>→ 9:36 AM (5+12+19)</td></tr>
+                                                                </table>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <span class="th-hint">Cumulative minutes from loop start when scan is expected</span>
+                                            </th>
+                                            <th style="width:15%;"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="normalAreaRows">
+                                        <!-- Dynamic rows will be inserted here -->
+                                    </tbody>
+                                </table>
+                                <div id="noAreasNormal" class="no-areas-message ${isEdit && editLoop.normalAreas?.length > 0 ? 'hidden' : ''}">
+                                    Click "+ Add New" to add scan points to this loop
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Advanced Mode Fields -->
+                        <div id="advancedFields" class="loop-config-section ${!isEdit || editLoop.mode !== 'advanced' ? 'hidden' : ''}">
+                            <div class="section-divider">
+                                <span>Schedule Based Settings</span>
+                                <button class="btn btn-sm btn-outline" type="button" id="addAreaAdvancedBtn">+ Add New</button>
+                            </div>
+                            <p class="loop-hint" id="ruleHelp">
+                                <strong>Time Slot:</strong> Define specific time windows for each day when scans should occur.
+                            </p>
+                            <div id="advancedAreaList">
+                                <!-- Dynamic area cards will be inserted here -->
+                            </div>
+                            <div id="noAreasAdvanced" class="no-areas-message">
+                                Click "+ Add New" to configure scan schedule by day
+                            </div>
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button class="btn btn-outline" id="cancelLoopBtn">Cancel</button>
-                        <button class="btn btn-primary" id="saveLoopBtn" ${availableScans.length === 0 ? 'disabled' : ''}>Assign Selected</button>
+                        <button class="btn btn-outline" id="cancelLoopConfigBtn">Cancel</button>
+                        <button class="btn btn-primary" id="saveLoopConfigBtn">Save Loop</button>
                     </div>
                 </div>
             </div>
         `;
+    },
+
+    getAvailableAreasForLocation() {
+        // Get all active areas for this client
+        // Areas can be from any location within the same client/business
+        return this.areasData.filter(area => area.status === 'active');
+    },
+
+    // ========== LOOP CONFIGURATION HELPERS ==========
+    uid() {
+        return Math.random().toString(16).slice(2) + Date.now().toString(16);
+    },
+
+    resetLoopConfigState() {
+        this.loopConfigState = {
+            isEdit: false,
+            editingLoopId: null,
+            mode: 'normal',
+            loopRule: 'time_based',
+            normalAreas: [],
+            advancedAreas: []
+        };
+    },
+
+    initLoopConfigForEdit(loop) {
+        this.loopConfigState.isEdit = true;
+        this.loopConfigState.editingLoopId = loop.id;
+        this.loopConfigState.mode = loop.mode || 'normal';
+        this.loopConfigState.loopRule = loop.loopRule || 'time_based';
+        this.loopConfigState.normalAreas = loop.normalAreas ? JSON.parse(JSON.stringify(loop.normalAreas)) : [];
+        this.loopConfigState.advancedAreas = loop.advancedAreas ? JSON.parse(JSON.stringify(loop.advancedAreas)) : [];
+    },
+
+    createAdvancedAreaConfig(areaId, areaName) {
+        const id = this.uid();
+        const dayConfig = {};
+        this.DAYS.forEach(d => {
+            dayConfig[d.key] = {
+                enabled: false,
+                slots: [],
+                gapValue: 10,
+                gapUnit: 'minutes' // Options: 'hours' or 'minutes'
+            };
+        });
+        return { id, areaId, areaName, dayConfig };
+    },
+
+    renderNormalAreasTable() {
+        const tbody = document.getElementById('normalAreaRows');
+        const noAreasMsg = document.getElementById('noAreasNormal');
+        if (!tbody) return;
+
+        const areas = this.loopConfigState.normalAreas;
+        const availableAreas = this.getAvailableAreasForLocation();
+
+        if (areas.length === 0) {
+            tbody.innerHTML = '';
+            noAreasMsg?.classList.remove('hidden');
+            return;
+        }
+
+        noAreasMsg?.classList.add('hidden');
+        tbody.innerHTML = areas.map(row => `
+            <tr data-row-id="${row.id}">
+                <td>
+                    <select class="form-select area-select-normal" data-row-id="${row.id}">
+                        ${availableAreas.map(a => `<option value="${a.id}" ${a.id === row.areaId ? 'selected' : ''}>${a.name}</option>`).join('')}
+                    </select>
+                </td>
+                <td>
+                    <input type="number" class="form-input interval-input-normal" data-row-id="${row.id}" min="0" value="${row.interval || 1}">
+                </td>
+                <td class="text-right">
+                    <button class="btn btn-sm btn-danger remove-normal-area" data-row-id="${row.id}" type="button">Remove</button>
+                </td>
+            </tr>
+        `).join('');
+
+        // Bind events for normal area rows
+        tbody.querySelectorAll('.area-select-normal').forEach(select => {
+            select.addEventListener('change', (e) => {
+                const rowId = e.target.getAttribute('data-row-id');
+                const area = this.loopConfigState.normalAreas.find(a => a.id === rowId);
+                if (area) {
+                    area.areaId = parseInt(e.target.value);
+                    area.areaName = e.target.options[e.target.selectedIndex].text;
+                }
+            });
+        });
+
+        tbody.querySelectorAll('.interval-input-normal').forEach(input => {
+            input.addEventListener('input', (e) => {
+                const rowId = e.target.getAttribute('data-row-id');
+                const area = this.loopConfigState.normalAreas.find(a => a.id === rowId);
+                if (area) area.interval = parseInt(e.target.value) || 0;
+            });
+        });
+
+        tbody.querySelectorAll('.remove-normal-area').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const rowId = e.target.getAttribute('data-row-id');
+                this.loopConfigState.normalAreas = this.loopConfigState.normalAreas.filter(a => a.id !== rowId);
+                this.renderNormalAreasTable();
+            });
+        });
+    },
+
+    renderAdvancedAreasList() {
+        const container = document.getElementById('advancedAreaList');
+        const noAreasMsg = document.getElementById('noAreasAdvanced');
+        if (!container) return;
+
+        const areas = this.loopConfigState.advancedAreas;
+        const rule = this.loopConfigState.loopRule;
+        const availableAreas = this.getAvailableAreasForLocation();
+
+        // Update rule help text
+        const ruleHelp = document.getElementById('ruleHelp');
+        if (ruleHelp) {
+            ruleHelp.innerHTML = rule === 'gap_between'
+                ? '<strong>Gap Based:</strong> Set minimum time gap between consecutive scans for each day.'
+                : '<strong>Time Slot:</strong> Define specific time windows (start & end) when scans should occur for each day.';
+        }
+
+        if (areas.length === 0) {
+            container.innerHTML = '';
+            noAreasMsg?.classList.remove('hidden');
+            return;
+        }
+
+        noAreasMsg?.classList.add('hidden');
+        const ruleText = rule === 'gap_between' ? 'Gap Between Scan' : 'Time Based';
+
+        container.innerHTML = areas.map(area => `
+            <div class="advanced-area-card" data-area-id="${area.id}">
+                <div class="advanced-area-header">
+                    <div class="advanced-area-left">
+                        <span>Area:</span>
+                        <select class="form-select area-select-advanced" data-area-id="${area.id}">
+                            ${availableAreas.map(a => `<option value="${a.id}" ${a.id === area.areaId ? 'selected' : ''}>${a.name}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="advanced-area-right">
+                        <span class="loop-rule-badge">${ruleText}</span>
+                        <button class="btn btn-sm btn-danger remove-advanced-area" data-area-id="${area.id}" type="button">Remove</button>
+                    </div>
+                </div>
+                <div class="days-scroll">
+                    <div class="days-grid">
+                        ${this.DAYS.map(d => this.renderDayCard(area, d.key, d.label, rule)).join('')}
+                    </div>
+                </div>
+            </div>
+        `).join('');
+
+        this.bindAdvancedAreaEvents();
+    },
+
+    renderDayCard(area, dayKey, dayLabel, rule) {
+        const cfg = area.dayConfig[dayKey];
+
+        const timeBasedHTML = `
+            <div class="slot-box">
+                <div class="slot-header">
+                    <span>Time Slots</span>
+                    <span class="slot-count">${(cfg.slots?.length || 0)} slot(s)</span>
+                </div>
+                <div class="slots-list" data-area-id="${area.id}" data-day="${dayKey}">
+                    ${(cfg.slots || []).map((slot, idx) => `
+                        <div class="slot-row" data-slot-idx="${idx}">
+                            <div class="slot-row-inputs">
+                                <input type="time" class="slot-start" value="${slot.start || '09:00'}" title="Start Time">
+                                <span class="slot-separator">to</span>
+                                <input type="time" class="slot-end" value="${slot.end || '09:15'}" title="End Time">
+                                <button class="delete-slot" type="button" title="Delete Slot">🗑️</button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+                <button class="btn btn-xs btn-outline add-slot-btn" data-area-id="${area.id}" data-day="${dayKey}" type="button">+ Add Slot</button>
+            </div>
+        `;
+
+        const gapHTML = `
+            <div class="gap-box">
+                <div class="slot-header">
+                    <span>Minimum Gap</span>
+                </div>
+                <div class="gap-config">
+                    <div class="form-group-sm">
+                        <label>Gap Value</label>
+                        <input type="number" class="gap-value" data-area-id="${area.id}" data-day="${dayKey}" min="0" value="${cfg.gapValue || 10}">
+                    </div>
+                    <div class="form-group-sm">
+                        <label>Unit</label>
+                        <select class="gap-unit" data-area-id="${area.id}" data-day="${dayKey}">
+                            <option value="hours" ${cfg.gapUnit === 'hours' ? 'selected' : ''}>Hours</option>
+                            <option value="minutes" ${cfg.gapUnit !== 'hours' ? 'selected' : ''}>Minutes</option>
+                        </select>
+                    </div>
+                </div>
+                <p class="gap-hint">Example: 10 minutes blocks immediate second scan.</p>
+            </div>
+        `;
+
+        return `
+            <div class="day-card ${!cfg.enabled ? 'day-disabled' : ''}" data-area-id="${area.id}" data-day="${dayKey}">
+                <div class="day-header">
+                    <span class="day-title">${dayLabel}</span>
+                    <input type="checkbox" class="day-enable-checkbox" ${cfg.enabled ? 'checked' : ''}>
+                </div>
+                ${rule === 'gap_between' ? gapHTML : timeBasedHTML}
+            </div>
+        `;
+    },
+
+    bindAdvancedAreaEvents() {
+        const container = document.getElementById('advancedAreaList');
+        if (!container) return;
+
+        // Area select change
+        container.querySelectorAll('.area-select-advanced').forEach(select => {
+            select.addEventListener('change', (e) => {
+                const areaId = e.target.getAttribute('data-area-id');
+                const area = this.loopConfigState.advancedAreas.find(a => a.id === areaId);
+                if (area) {
+                    area.areaId = parseInt(e.target.value);
+                    area.areaName = e.target.options[e.target.selectedIndex].text;
+                }
+            });
+        });
+
+        // Remove area
+        container.querySelectorAll('.remove-advanced-area').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const areaId = e.target.getAttribute('data-area-id');
+                this.loopConfigState.advancedAreas = this.loopConfigState.advancedAreas.filter(a => a.id !== areaId);
+                this.renderAdvancedAreasList();
+            });
+        });
+
+        // Day enable checkbox
+        container.querySelectorAll('.day-enable-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', (e) => {
+                const dayCard = e.target.closest('.day-card');
+                const areaId = dayCard.getAttribute('data-area-id');
+                const dayKey = dayCard.getAttribute('data-day');
+                const area = this.loopConfigState.advancedAreas.find(a => a.id === areaId);
+                if (area) {
+                    area.dayConfig[dayKey].enabled = e.target.checked;
+                    dayCard.classList.toggle('day-disabled', !e.target.checked);
+                    // Enable/disable inputs in the day card
+                    dayCard.querySelectorAll('input:not(.day-enable-checkbox), select, button:not(.day-enable-checkbox)').forEach(el => {
+                        el.disabled = !e.target.checked;
+                    });
+                }
+            });
+        });
+
+        // Add slot button
+        container.querySelectorAll('.add-slot-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const areaId = e.target.getAttribute('data-area-id');
+                const dayKey = e.target.getAttribute('data-day');
+                const area = this.loopConfigState.advancedAreas.find(a => a.id === areaId);
+                if (area) {
+                    if (!area.dayConfig[dayKey].slots) area.dayConfig[dayKey].slots = [];
+                    area.dayConfig[dayKey].slots.push({ start: '09:00', end: '09:15' });
+                    this.renderAdvancedAreasList();
+                }
+            });
+        });
+
+        // Delete slot buttons
+        container.querySelectorAll('.delete-slot').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const slotRow = e.target.closest('.slot-row');
+                const slotsList = slotRow.closest('.slots-list');
+                const areaId = slotsList.getAttribute('data-area-id');
+                const dayKey = slotsList.getAttribute('data-day');
+                const slotIdx = parseInt(slotRow.getAttribute('data-slot-idx'));
+                const area = this.loopConfigState.advancedAreas.find(a => a.id === areaId);
+                if (area && area.dayConfig[dayKey].slots) {
+                    area.dayConfig[dayKey].slots.splice(slotIdx, 1);
+                    this.renderAdvancedAreasList();
+                }
+            });
+        });
+
+        // Slot inputs (start, end)
+        container.querySelectorAll('.slot-start').forEach(input => {
+            input.addEventListener('change', (e) => this.updateSlotValue(e.target, 'start'));
+        });
+        container.querySelectorAll('.slot-end').forEach(input => {
+            input.addEventListener('change', (e) => this.updateSlotValue(e.target, 'end'));
+        });
+
+        // Gap inputs
+        container.querySelectorAll('.gap-value').forEach(input => {
+            input.addEventListener('input', (e) => {
+                const areaId = e.target.getAttribute('data-area-id');
+                const dayKey = e.target.getAttribute('data-day');
+                const area = this.loopConfigState.advancedAreas.find(a => a.id === areaId);
+                if (area) area.dayConfig[dayKey].gapValue = parseInt(e.target.value) || 0;
+            });
+        });
+        container.querySelectorAll('.gap-unit').forEach(select => {
+            select.addEventListener('change', (e) => {
+                const areaId = e.target.getAttribute('data-area-id');
+                const dayKey = e.target.getAttribute('data-day');
+                const area = this.loopConfigState.advancedAreas.find(a => a.id === areaId);
+                if (area) area.dayConfig[dayKey].gapUnit = e.target.value;
+            });
+        });
+
+        // Apply disabled state to inputs in disabled day cards
+        container.querySelectorAll('.day-card.day-disabled').forEach(dayCard => {
+            dayCard.querySelectorAll('input:not(.day-enable-checkbox), select, button:not(.day-enable-checkbox)').forEach(el => {
+                el.disabled = true;
+            });
+        });
+    },
+
+    updateSlotValue(input, field) {
+        const slotRow = input.closest('.slot-row');
+        const slotsList = slotRow.closest('.slots-list');
+        if (!slotsList) return;
+        const areaId = slotsList.getAttribute('data-area-id');
+        const dayKey = slotsList.getAttribute('data-day');
+        const slotIdx = parseInt(slotRow.getAttribute('data-slot-idx'));
+        const area = this.loopConfigState.advancedAreas.find(a => a.id === areaId);
+        if (area && area.dayConfig[dayKey].slots && area.dayConfig[dayKey].slots[slotIdx]) {
+            area.dayConfig[dayKey].slots[slotIdx][field] = input.value;
+        }
     },
 
     // ========== AREA DETAIL VIEW ==========
@@ -988,70 +1443,14 @@ const ClientDetailPage = {
     },
 
     renderAreaLoopContent() {
-        const loops = this.areaLoopsData || [];
-        const availableScans = this.getAvailableScansForArea();
-
         return `
             <div class="loop-section">
                 <div class="loop-header">
                     <h2 class="section-title">Loop</h2>
-                    <button class="btn btn-primary" id="addAreaLoopBtn">Add New</button>
                 </div>
-
-                <div class="loop-list">
-                    ${loops.length > 0 ? loops.map(loop => `
-                        <div class="loop-item" data-loop-id="${loop.id}">
-                            <span class="loop-name">${loop.name}</span>
-                            <div class="loop-actions">
-                                <button class="btn-icon-action" data-action="copy-area-loop" data-id="${loop.id}" title="Copy">📋</button>
-                                <button class="btn-icon-action" data-action="view-area-loop" data-id="${loop.id}" title="View">👁️</button>
-                                <button class="btn-icon-action" data-action="delete-area-loop" data-id="${loop.id}" title="Delete">🗑️</button>
-                            </div>
-                        </div>
-                    `).join('') : `
-                        <div class="empty-state" style="margin-top: 100px;">
-                            <div class="empty-state-icon">🔄</div>
-                            <p>No loops available</p>
-                        </div>
-                    `}
-                </div>
-            </div>
-
-            <!-- Add Area Loop Modal -->
-            <div class="modal-overlay" id="addAreaLoopModal">
-                <div class="modal modal-lg">
-                    <div class="modal-header">
-                        <h3>Assign Master Scan Loop</h3>
-                        <span class="modal-close" data-modal="addAreaLoopModal">&times;</span>
-                    </div>
-                    <div class="modal-body">
-                        <div class="form-group">
-                            <label class="form-label">Select Master Scan Loop(s) <span class="required">*</span></label>
-                            <p class="form-note">Select one or more Master Scans to assign to this area</p>
-                            ${availableScans.length > 0 ? `
-                                <div class="scan-checkbox-list">
-                                    ${availableScans.map(scan => `
-                                        <label class="scan-checkbox-item">
-                                            <input type="checkbox" class="area-scan-checkbox" value="${scan.id}" data-name="${scan.name}" data-frequency="${scan.frequency}">
-                                            <span class="scan-checkbox-info">
-                                                <span class="scan-checkbox-name">${scan.name}</span>
-                                                <span class="scan-checkbox-freq">${scan.frequency}</span>
-                                            </span>
-                                        </label>
-                                    `).join('')}
-                                </div>
-                            ` : `
-                                <div class="alert-info">
-                                    <p>No available Master Scans to assign. All scans are already assigned to this area or no active scans exist.</p>
-                                    <p style="margin-top: 10px;"><a href="scan-master.html" class="link-primary">Go to Scan Master</a> to create new scans.</p>
-                                </div>
-                            `}
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button class="btn btn-outline" id="cancelAreaLoopBtn">Cancel</button>
-                        <button class="btn btn-primary" id="saveAreaLoopBtn" ${availableScans.length === 0 ? 'disabled' : ''}>Assign Selected</button>
-                    </div>
+                <div class="info-message">
+                    <p>Loop configuration is managed at the <strong>Location level</strong>.</p>
+                    <p>Please go to the Location detail view to configure loops for this area.</p>
                 </div>
             </div>
         `;
@@ -1187,19 +1586,24 @@ const ClientDetailPage = {
             });
         });
 
-        // Add Loop button
+        // Add Loop button - Open Loop Configuration Modal
         document.getElementById('addLoopBtn')?.addEventListener('click', () => {
-            App.showModal('addLoopModal');
+            this.resetLoopConfigState();
+            App.showModal('loopConfigModal');
+            this.renderNormalAreasTable();
+            this.renderAdvancedAreasList();
+            this.bindLoopConfigEvents();
         });
 
-        // Cancel Loop button
-        document.getElementById('cancelLoopBtn')?.addEventListener('click', () => {
-            App.hideModal('addLoopModal');
+        // Cancel Loop Config button
+        document.getElementById('cancelLoopConfigBtn')?.addEventListener('click', () => {
+            App.hideModal('loopConfigModal');
+            this.resetLoopConfigState();
         });
 
-        // Save Loop button
-        document.getElementById('saveLoopBtn')?.addEventListener('click', () => {
-            this.handleSaveLoop();
+        // Save Loop Config button
+        document.getElementById('saveLoopConfigBtn')?.addEventListener('click', () => {
+            this.handleSaveLoopConfig();
         });
 
         // Modal close buttons
@@ -1207,23 +1611,22 @@ const ClientDetailPage = {
             btn.addEventListener('click', () => {
                 const modalId = btn.getAttribute('data-modal');
                 App.hideModal(modalId);
+                if (modalId === 'loopConfigModal') {
+                    this.resetLoopConfigState();
+                }
             });
         });
 
-        // Loop actions
+        // Loop actions - Copy
         document.querySelectorAll('[data-action="copy-loop"]').forEach(btn => {
             btn.addEventListener('click', () => {
                 const id = btn.getAttribute('data-id');
                 const loop = this.loopsData.find(l => l.id == id);
                 if (loop) {
-                    const newLoop = {
-                        id: Date.now(),
-                        scanMasterId: loop.scanMasterId,
-                        name: `${loop.name} (Copy)`,
-                        frequency: loop.frequency,
-                        status: 'active',
-                        assignedAt: new Date().toISOString()
-                    };
+                    const newLoop = JSON.parse(JSON.stringify(loop));
+                    newLoop.id = Date.now();
+                    newLoop.name = `${loop.name} (Copy)`;
+                    newLoop.createdAt = new Date().toISOString();
                     this.loopsData.push(newLoop);
                     this.saveLoopsData(this.selectedLocation.id);
                     this.render();
@@ -1233,16 +1636,40 @@ const ClientDetailPage = {
             });
         });
 
-        document.querySelectorAll('[data-action="view-loop"]').forEach(btn => {
+        // Loop actions - Edit
+        document.querySelectorAll('[data-action="edit-loop"]').forEach(btn => {
             btn.addEventListener('click', () => {
                 const id = btn.getAttribute('data-id');
                 const loop = this.loopsData.find(l => l.id == id);
                 if (loop) {
-                    alert(`Viewing loop: ${loop.name}`);
+                    this.resetLoopConfigState();
+                    this.initLoopConfigForEdit(loop);
+                    App.showModal('loopConfigModal');
+
+                    // Populate form fields
+                    document.getElementById('loopName').value = loop.name || '';
+                    document.getElementById('loopMultiple').value = loop.loopMultiple || 1;
+                    document.getElementById('rewardPoint').value = loop.rewardPoint || 10;
+                    document.getElementById('loopBuffer').value = loop.loopBuffer || 5;
+
+                    if (loop.mode === 'advanced') {
+                        document.getElementById('modeAdvanced').checked = true;
+                        document.getElementById('loopRuleWrap').classList.remove('hidden');
+                        document.getElementById('normalFields').classList.add('hidden');
+                        document.getElementById('advancedFields').classList.remove('hidden');
+                        document.getElementById('loopRule').value = loop.loopRule || 'time_based';
+                    } else {
+                        document.getElementById('modeNormal').checked = true;
+                    }
+
+                    this.renderNormalAreasTable();
+                    this.renderAdvancedAreasList();
+                    this.bindLoopConfigEvents();
                 }
             });
         });
 
+        // Loop actions - Delete
         document.querySelectorAll('[data-action="delete-loop"]').forEach(btn => {
             btn.addEventListener('click', () => {
                 const id = btn.getAttribute('data-id');
@@ -1341,103 +1768,164 @@ const ClientDetailPage = {
             this.handleSaveArea();
         });
 
-        // Add Area Loop button
-        document.getElementById('addAreaLoopBtn')?.addEventListener('click', () => {
-            App.showModal('addAreaLoopModal');
+    },
+
+    bindLoopConfigEvents() {
+        // Mode toggle (Interval Based / Schedule Based)
+        document.getElementById('modeNormal')?.addEventListener('change', () => {
+            this.loopConfigState.mode = 'normal';
+            document.getElementById('loopRuleWrap').classList.add('hidden');
+            document.getElementById('normalFields').classList.remove('hidden');
+            document.getElementById('advancedFields').classList.add('hidden');
+            document.getElementById('modeHint').textContent = 'Scans are expected at cumulative intervals after loop starts';
         });
 
-        // Cancel Area Loop button
-        document.getElementById('cancelAreaLoopBtn')?.addEventListener('click', () => {
-            App.hideModal('addAreaLoopModal');
+        document.getElementById('modeAdvanced')?.addEventListener('change', () => {
+            this.loopConfigState.mode = 'advanced';
+            document.getElementById('loopRuleWrap').classList.remove('hidden');
+            document.getElementById('normalFields').classList.add('hidden');
+            document.getElementById('advancedFields').classList.remove('hidden');
+            document.getElementById('modeHint').textContent = 'Define specific time slots or minimum gaps for each day of the week';
+            this.renderAdvancedAreasList();
         });
 
-        // Save Area Loop button
-        document.getElementById('saveAreaLoopBtn')?.addEventListener('click', () => {
-            this.handleSaveAreaLoop();
+        // Loop Rule change
+        document.getElementById('loopRule')?.addEventListener('change', (e) => {
+            this.loopConfigState.loopRule = e.target.value;
+            this.renderAdvancedAreasList();
         });
 
-        // Area Loop actions
-        document.querySelectorAll('[data-action="copy-area-loop"]').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const id = btn.getAttribute('data-id');
-                const loop = this.areaLoopsData.find(l => l.id == id);
-                if (loop) {
-                    const newLoop = {
-                        id: Date.now(),
-                        scanMasterId: loop.scanMasterId,
-                        name: `${loop.name} (Copy)`,
-                        frequency: loop.frequency,
-                        status: 'active',
-                        assignedAt: new Date().toISOString()
-                    };
-                    this.areaLoopsData.push(newLoop);
-                    this.saveAreaLoopsData(this.selectedArea.id);
-                    this.render();
-                    this.bindEvents();
-                    App.showToast('Loop copied successfully!', 'success');
+        // Info icon tooltip toggle
+        const infoBtn = document.getElementById('intervalInfoBtn');
+        const infoTooltip = document.getElementById('intervalInfoTooltip');
+        const infoClose = document.getElementById('intervalInfoClose');
+
+        infoBtn?.addEventListener('click', (e) => {
+            e.stopPropagation();
+
+            if (infoTooltip?.classList.contains('show')) {
+                infoTooltip.classList.remove('show');
+            } else {
+                // Position tooltip above the button
+                const btnRect = infoBtn.getBoundingClientRect();
+                const tooltipHeight = 200; // approximate height
+
+                infoTooltip.style.left = btnRect.left + 'px';
+                infoTooltip.style.top = (btnRect.top - tooltipHeight - 10) + 'px';
+
+                // If tooltip goes above viewport, show it below instead
+                if (btnRect.top - tooltipHeight - 10 < 10) {
+                    infoTooltip.style.top = (btnRect.bottom + 10) + 'px';
                 }
-            });
+
+                infoTooltip?.classList.add('show');
+            }
         });
 
-        document.querySelectorAll('[data-action="view-area-loop"]').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const id = btn.getAttribute('data-id');
-                const loop = this.areaLoopsData.find(l => l.id == id);
-                if (loop) {
-                    alert(`Viewing loop: ${loop.name}`);
-                }
-            });
+        infoClose?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            infoTooltip?.classList.remove('show');
         });
 
-        document.querySelectorAll('[data-action="delete-area-loop"]').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const id = btn.getAttribute('data-id');
-                if (confirm('Are you sure you want to delete this loop?')) {
-                    this.areaLoopsData = this.areaLoopsData.filter(l => l.id != id);
-                    this.saveAreaLoopsData(this.selectedArea.id);
-                    this.render();
-                    this.bindEvents();
-                    App.showToast('Loop deleted successfully!', 'success');
-                }
+        // Close tooltip when clicking outside
+        document.addEventListener('click', (e) => {
+            if (infoTooltip?.classList.contains('show') && !infoTooltip.contains(e.target) && e.target !== infoBtn) {
+                infoTooltip.classList.remove('show');
+            }
+        });
+
+        // Add Area for Normal mode - directly add first area
+        document.getElementById('addAreaNormalBtn')?.addEventListener('click', () => {
+            const availableAreas = this.getAvailableAreasForLocation();
+            if (availableAreas.length === 0) {
+                App.showToast('No areas available for this location', 'warning');
+                return;
+            }
+            // Get the first area from the list
+            const firstArea = availableAreas[0];
+            this.loopConfigState.normalAreas.push({
+                id: this.uid(),
+                areaId: firstArea.id,
+                areaName: firstArea.name,
+                interval: 1
             });
+            this.renderNormalAreasTable();
+        });
+
+        // Add Area for Advanced mode - directly add first area
+        document.getElementById('addAreaAdvancedBtn')?.addEventListener('click', () => {
+            const availableAreas = this.getAvailableAreasForLocation();
+            if (availableAreas.length === 0) {
+                App.showToast('No areas available for this location', 'warning');
+                return;
+            }
+            // Get the first area from the list
+            const firstArea = availableAreas[0];
+            this.loopConfigState.advancedAreas.push(
+                this.createAdvancedAreaConfig(firstArea.id, firstArea.name)
+            );
+            this.renderAdvancedAreasList();
         });
     },
 
-    handleSaveLoop() {
-        const checkboxes = document.querySelectorAll('.scan-checkbox:checked');
+    handleSaveLoopConfig() {
+        const loopName = document.getElementById('loopName')?.value.trim();
 
-        if (checkboxes.length === 0) {
-            alert('Please select at least one Master Scan');
+        if (!loopName) {
+            App.showToast('Please enter a loop name', 'error');
             return;
         }
 
-        // Add each selected scan as a loop
-        let addedCount = 0;
-        checkboxes.forEach(checkbox => {
-            const scanId = parseInt(checkbox.value);
-            const scanName = checkbox.getAttribute('data-name');
-            const scanFrequency = checkbox.getAttribute('data-frequency');
+        const mode = this.loopConfigState.mode;
 
-            const newLoop = {
-                id: Date.now() + addedCount, // Ensure unique IDs
-                scanMasterId: scanId,
-                name: scanName,
-                frequency: scanFrequency,
-                status: 'active',
-                assignedAt: new Date().toISOString()
-            };
+        if (mode === 'normal' && this.loopConfigState.normalAreas.length === 0) {
+            App.showToast('Please add at least one area', 'error');
+            return;
+        }
 
-            this.loopsData.push(newLoop);
-            addedCount++;
-        });
+        if (mode === 'advanced' && this.loopConfigState.advancedAreas.length === 0) {
+            App.showToast('Please add at least one area', 'error');
+            return;
+        }
+
+        const loopData = {
+            id: this.loopConfigState.isEdit ? this.loopConfigState.editingLoopId : Date.now(),
+            name: loopName,
+            mode: mode,
+            loopMultiple: parseInt(document.getElementById('loopMultiple')?.value) || 1,
+            rewardPoint: parseInt(document.getElementById('rewardPoint')?.value) || 10,
+            loopBuffer: parseInt(document.getElementById('loopBuffer')?.value) || 5,
+            status: 'active',
+            createdAt: this.loopConfigState.isEdit ?
+                (this.loopsData.find(l => l.id === this.loopConfigState.editingLoopId)?.createdAt || new Date().toISOString()) :
+                new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+        };
+
+        if (mode === 'normal') {
+            loopData.normalAreas = this.loopConfigState.normalAreas;
+        } else {
+            loopData.loopRule = this.loopConfigState.loopRule;
+            loopData.advancedAreas = this.loopConfigState.advancedAreas;
+        }
+
+        if (this.loopConfigState.isEdit) {
+            // Update existing loop
+            const index = this.loopsData.findIndex(l => l.id === this.loopConfigState.editingLoopId);
+            if (index !== -1) {
+                this.loopsData[index] = loopData;
+            }
+        } else {
+            // Add new loop
+            this.loopsData.push(loopData);
+        }
 
         this.saveLoopsData(this.selectedLocation.id);
-
-        App.hideModal('addLoopModal');
-
+        App.hideModal('loopConfigModal');
+        this.resetLoopConfigState();
         this.render();
         this.bindEvents();
-        App.showToast(`${addedCount} Master Scan(s) assigned successfully!`, 'success');
+        App.showToast(this.loopConfigState.isEdit ? 'Loop updated successfully!' : 'Loop created successfully!', 'success');
     },
 
     handleLocationSearch(query) {
@@ -1528,43 +2016,6 @@ const ClientDetailPage = {
 
         this.saveAreasData();
         App.showToast('Area saved successfully!', 'success');
-    },
-
-    handleSaveAreaLoop() {
-        const checkboxes = document.querySelectorAll('.area-scan-checkbox:checked');
-
-        if (checkboxes.length === 0) {
-            alert('Please select at least one Master Scan');
-            return;
-        }
-
-        // Add each selected scan as a loop
-        let addedCount = 0;
-        checkboxes.forEach(checkbox => {
-            const scanId = parseInt(checkbox.value);
-            const scanName = checkbox.getAttribute('data-name');
-            const scanFrequency = checkbox.getAttribute('data-frequency');
-
-            const newLoop = {
-                id: Date.now() + addedCount, // Ensure unique IDs
-                scanMasterId: scanId,
-                name: scanName,
-                frequency: scanFrequency,
-                status: 'active',
-                assignedAt: new Date().toISOString()
-            };
-
-            this.areaLoopsData.push(newLoop);
-            addedCount++;
-        });
-
-        this.saveAreaLoopsData(this.selectedArea.id);
-
-        App.hideModal('addAreaLoopModal');
-
-        this.render();
-        this.bindEvents();
-        App.showToast(`${addedCount} Master Scan(s) assigned successfully!`, 'success');
     }
 };
 

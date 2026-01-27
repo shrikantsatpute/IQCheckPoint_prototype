@@ -1,0 +1,100 @@
+/* ========================================
+   Cards
+   ======================================== */
+.card {
+    background: var(--bg-white);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.card-title {
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.card-body {
+    padding: 0;
+}
+
+.card-actions {
+    display: flex;
+    gap: 10px;
+}
+
+/* ========================================
+   Stats Cards
+   ======================================== */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+}
+
+.stat-card {
+    text-align: center;
+    padding: 25px;
+}
+
+.stat-value {
+    font-size: 36px;
+    font-weight: bold;
+    margin-bottom: 8px;
+}
+
+.stat-label {
+    color: var(--text-muted);
+    font-size: 14px;
+}
+
+/* ========================================
+   Info Box
+   ======================================== */
+.info-box {
+    background: var(--bg-white);
+    border-left: 4px solid var(--primary-color);
+    padding: 20px;
+    border-radius: 0 var(--radius-md) var(--radius-md) 0;
+    box-shadow: var(--shadow-sm);
+}
+
+.info-box h3 {
+    color: var(--primary-color);
+    margin-bottom: 10px;
+}
+
+.info-box p {
+    color: var(--text-muted);
+    line-height: 1.6;
+}
+
+/* ========================================
+   Welcome Box
+   ======================================== */
+.welcome-box {
+    background: var(--bg-white);
+    border-radius: var(--radius-md);
+    padding: 40px;
+    text-align: center;
+    box-shadow: var(--shadow-sm);
+}
+
+.welcome-box h2 {
+    color: var(--primary-color);
+    margin-bottom: 15px;
+}
+
+.welcome-box p {
+    color: var(--text-muted);
+    line-height: 1.6;
+}
