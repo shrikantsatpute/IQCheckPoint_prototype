@@ -1,0 +1,145 @@
+/* ========================================
+   Shift Panel Styles
+   ======================================== */
+
+.shift-panel-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    display: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.shift-panel-overlay.show {
+    display: block;
+    opacity: 1;
+}
+
+.shift-panel {
+    position: fixed;
+    top: 0;
+    right: -400px;
+    width: 380px;
+    height: 100%;
+    background-color: #fff;
+    box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
+    transition: right 0.3s ease;
+    display: flex;
+    flex-direction: column;
+}
+
+.shift-panel-overlay.show .shift-panel {
+    right: 0;
+}
+
+.shift-panel-header {
+    display: flex;
+    justify-content: flex-end;
+    padding: 10px;
+}
+
+.shift-panel-close {
+    font-size: 24px;
+    cursor: pointer;
+    color: #888;
+}
+
+.shift-panel-body {
+    padding: 0 20px 20px;
+    overflow-y: auto;
+}
+
+.shift-user-info {
+    display: flex;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.shift-user-avatar {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background-color: var(--primary-color);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    font-weight: bold;
+    margin-right: 15px;
+}
+
+.shift-user-details {
+    line-height: 1.4;
+}
+
+.shift-user-name {
+    font-weight: bold;
+    font-size: 18px;
+}
+
+.shift-user-business,
+.shift-user-role {
+    font-size: 14px;
+    color: #555;
+}
+
+.shift-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.shift-buttons .btn {
+    width: 100%;
+    padding: 12px;
+}
+
+.shift-section {
+    margin-bottom: 20px;
+}
+
+.shift-section-title {
+    font-size: 16px;
+    font-weight: bold;
+    margin-bottom: 15px;
+    color: #333;
+}
+
+.shift-items-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+}
+
+.shift-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    cursor: pointer;
+    padding: 10px;
+    border-radius: 8px;
+    transition: background-color 0.2s ease;
+}
+
+.shift-item:hover {
+    background-color: #f5f5f5;
+}
+
+.shift-item-icon {
+    font-size: 24px;
+    margin-bottom: 8px;
+    color: var(--primary-color);
+}
+
+.shift-item-label {
+    font-size: 12px;
+    color: #555;
+}

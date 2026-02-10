@@ -16,6 +16,9 @@
 @import url('components/navigation.css');
 @import url('components/tabs.css');
 @import url('components/toast.css');
+@import url('components/shift-panel.css');
+@import url('components/start-shift-modal.css');
+@import url('components/qr-scanner-modal.css');
 
 /* Pages */
 @import url('pages/my-business.css');

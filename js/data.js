@@ -437,5 +437,47 @@ const AppData = {
         1: [
             { id: 1, scanMasterId: 2, name: "Weekly Report Scan", frequency: "Weekly", status: "active", assignedAt: "2024-01-20T09:00:00Z" }
         ]
+    },
+
+    // Start Shift Panel Data
+    startShiftPanel: {
+        user: {
+            name: "Livemy Admin",
+            business: "VDG",
+            role: "System Administrator",
+            initials: "LA"
+        },
+        buttons: [
+            { id: "startShiftBtn", label: "Start Shift", class: "btn-primary" },
+            { id: "handoverNotesBtn", label: "Handover Notes", class: "btn-secondary" }
+        ],
+        sections: [
+            {
+                title: "Shift",
+                items: [
+                    { id: "upcomingShift", label: "My Upcoming Shift", icon: "➔" },
+                    { id: "availableShift", label: "Available Shift", icon: "✓" },
+                    { id: "myTimesheets", label: "My Timesheets", icon: "◷" }
+                ]
+            },
+            {
+                title: "Time Off",
+                items: [
+                    { id: "myLeave", label: "My Leave", icon: "📅" },
+                    { id: "myUnavailability", label: "My Unavailability", icon: "🚫" }
+                ]
+            },
+            {
+                title: "Personal",
+                items: [
+                    { id: "myTasks", label: "My Tasks", icon: "📝" },
+                    { id: "myForms", label: "My Forms", icon: "📄" },
+                    { id: "myReward", label: "My Reward", icon: "🏆" },
+                    { id: "myProfile", label: "My Profile", icon: "👤" },
+                    { id: "celebration", label: "Celebration", icon: "🎉" },
+                    { id: "calendar", label: "Calendar", icon: "📆" }
+                ]
+            }
+        ]
     }
 };

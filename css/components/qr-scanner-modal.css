@@ -1,0 +1,17 @@
+/* ========================================
+   QR Scanner Modal Styles
+   ======================================== */
+
+#qr-reader {
+    border: 2px solid #eee;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+#qr-scan-result {
+    margin-top: 1rem;
+    padding: 1rem;
+    background-color: #f3f4f6;
+    border-radius: 8px;
+    display: none;
+}

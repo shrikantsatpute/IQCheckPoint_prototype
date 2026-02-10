@@ -117,8 +117,22 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 12px;
     font-weight: bold;
+}
+
+.nav-shift-timer {
+    background-color: #00bcd4; /* Example color, adjust as needed */
+    color: white;
+    padding: 8px 12px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.nav-shift-timer:hover {
+    background-color: #00acc1; /* Slightly darker on hover */
 }
 
 /* ========================================

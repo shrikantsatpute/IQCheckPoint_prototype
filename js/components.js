@@ -216,5 +216,176 @@ const Components = {
                 ${input}
             </div>
         `;
+    },
+
+    // Generate Start Shift Panel
+    startShiftPanel(panelData) {
+        const sections = panelData.sections.map(section => `
+            <div class="shift-section">
+                <h3 class="shift-section-title">${section.title}</h3>
+                <div class="shift-items-grid">
+                    ${section.items.map(item => `
+                        <div class="shift-item" id="${item.id}">
+                            <div class="shift-item-icon">${item.icon}</div>
+                            <div class="shift-item-label">${item.label}</div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `).join('');
+
+        return `
+            <div class="shift-panel-overlay" id="startShiftPanel">
+                <div class="shift-panel">
+                    <div class="shift-panel-header">
+                        <span class="shift-panel-close" id="closeShiftPanel">&times;</span>
+                    </div>
+                    <div class="shift-panel-body">
+                        <div class="shift-user-info">
+                            <div class="shift-user-avatar">${panelData.user.initials}</div>
+                            <div class="shift-user-details">
+                                <div class="shift-user-name">${panelData.user.name}</div>
+                                <div class="shift-user-business"><b>Business:</b> ${panelData.user.business}</div>
+                                <div class="shift-user-role"><b>Role:</b> ${panelData.user.role}</div>
+                            </div>
+                        </div>
+                        <div class="shift-buttons">
+                            <button class="btn ${panelData.buttons[0].class}" id="${panelData.buttons[0].id}">${panelData.buttons[0].label}</button>
+                            <button class="btn ${panelData.buttons[1].class}" id="${panelData.buttons[1].id}">${panelData.buttons[1].label}</button>
+                        </div>
+                        ${sections}
+                    </div>
+                </div>
+            </div>
+        `;
+    },
+
+    // Generate Start Shift Modal
+    startShiftModal(businesses) {
+        const businessOptions = businesses.map(b => `<option value="${b.id}">${b.business}</option>`).join('');
+
+        return `
+            <div class="modal-overlay" id="startShiftModal">
+                <div class="modal modal-lg" id="startShiftModalContent">
+                    <!-- Step 1: Select Business, Location, Area -->
+                    <div id="shift-step-1">
+                        <div class="modal-header">
+                            <h3>Shift</h3>
+                            <span class="modal-close" data-modal="startShiftModal">&times;</span>
+                        </div>
+                        <div class="modal-body">
+                            <div class="start-shift-grid">
+                                <div class="start-shift-form">
+                                    <div class="form-group">
+                                        <label class="form-label" for="shiftBusiness">My Business <span class="text-danger">*</span></label>
+                                        <select class="form-select" id="shiftBusiness">
+                                            <option value="">Select Business</option>
+                                            ${businessOptions}
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label" for="shiftLocation">My Business Location <span class="text-danger">*</span></label>
+                                        <select class="form-select" id="shiftLocation" disabled>
+                                            <option value="">Select Location</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label" for="shiftArea">Area <span class="text-danger">*</span></label>
+                                        <select class="form-select" id="shiftArea" disabled>
+                                            <option value="">Select Area</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="start-shift-upcoming">
+                                    <h4>Your Upcoming Shift</h4>
+                                    <div class="upcoming-shift-box">
+                                        <div class="upcoming-shift-icon">📅</div>
+                                        <p>There are no Upcoming shifts at the moment</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="btn btn-outline" data-modal="startShiftModal">Close</button>
+                            <button class="btn btn-primary" id="shiftSaveBtn">Save</button>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Verify and Submit -->
+                    <div id="shift-step-2" style="display: none;">
+                        <div class="modal-header">
+                            <h3>Start Shift</h3>
+                            <span class="modal-close" data-modal="startShiftModal">&times;</span>
+                        </div>
+                        <div class="modal-body">
+                            <div class="verify-link-container">
+                                <a href="#" class="link-primary">Verify</a>
+                            </div>
+                            <div class="distance-info">
+                                Distance From Actual Location 10,428.72 KMs
+                            </div>
+                            <div class="map-placeholder">
+                                <img src="https://i.imgur.com/5gStG29.png" alt="Map Placeholder" style="width: 100%; height: 150px; object-fit: cover; border-radius: 8px;">
+                            </div>
+                            <div class="shift-details-grid">
+                                <div class="form-group">
+                                    <label class="form-label">Area</label>
+                                    <input type="text" class="form-input" id="verifyArea" readonly>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">My Business Location</label>
+                                    <input type="text" class="form-input" id="verifyLocation" readonly>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">My Business</label>
+                                    <input type="text" class="form-input" id="verifyBusiness" readonly>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Shift Notes</label>
+                                <textarea class="form-input" rows="2"></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Start Shift Comment</label>
+                                <textarea class="form-input" rows="2"></textarea>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="btn btn-primary" id="shiftSubmitBtn">Submit</button>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Shift Started -->
+                    <div id="shift-step-3" style="display: none;">
+                        <div class="modal-header">
+                            <span class="modal-close" data-modal="startShiftModal">&times;</span>
+                        </div>
+                        <div class="modal-body text-center">
+                            <div class="shift-started-icon">✓</div>
+                            <h2>Shift Started!</h2>
+                            <p>Your shift has started at <span id="shiftStartTime"></span></p>
+                            <button class="btn btn-primary" id="shiftDoneBtn">Done</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    },
+
+    qrScannerModal() {
+        return `
+            <div class="modal-overlay" id="qrScannerModal">
+                <div class="modal">
+                    <div class="modal-header">
+                        <h3>Scan QR Code</h3>
+                        <span class="modal-close" data-modal="qrScannerModal">&times;</span>
+                    </div>
+                    <div class="modal-body">
+                        <div id="qr-reader" style="width: 100%;"></div>
+                        <div id="qr-scan-result"></div>
+                    </div>
+                </div>
+            </div>
+        `;
     }
 };
