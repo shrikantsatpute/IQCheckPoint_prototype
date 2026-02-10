@@ -22,14 +22,15 @@ const ClientDetailPage = {
     selectedArea: null,
     areaSidebarItem: 'general',
     areaFilter: 'active',
+    // QR Code State
+    currentQRLoop: null,
     // Loop Configuration State
     loopConfigState: {
         isEdit: false,
         editingLoopId: null,
         mode: 'normal',
         normalAreas: [],
-        advancedAreas: [],
-        singleTimeAreas: []
+        advancedAreas: []
     },
     DAYS: [
         { key: 'mon', label: 'Mon' },
@@ -716,10 +717,7 @@ const ClientDetailPage = {
                         let modeBadgeText = 'Interval Based';
                         if (loop.mode === 'advanced') {
                             modeBadgeClass = 'advanced';
-                            modeBadgeText = 'Schedule Based (Option A)';
-                        } else if (loop.mode === 'single_time') {
-                            modeBadgeClass = 'single-time';
-                            modeBadgeText = 'Schedule Based (Option B)';
+                            modeBadgeText = 'Schedule Based';
                         }
                         return `
                         <div class="loop-item" data-loop-id="${loop.id}">
@@ -728,6 +726,7 @@ const ClientDetailPage = {
                                 <span class="loop-mode-badge ${modeBadgeClass}">${modeBadgeText}</span>
                             </div>
                             <div class="loop-actions">
+                                ${loop.pointTypeQR !== false && loop.qrCodeData ? `<button class="loop-qr-badge" data-action="view-qr" data-id="${loop.id}" title="View QR Code">Q</button>` : ''}
                                 <button class="btn-icon-action" data-action="copy-loop" data-id="${loop.id}" title="Copy">📋</button>
                                 <button class="btn-icon-action" data-action="edit-loop" data-id="${loop.id}" title="Edit">✏️</button>
                                 <button class="btn-icon-action" data-action="delete-loop" data-id="${loop.id}" title="Delete">🗑️</button>
@@ -744,6 +743,37 @@ const ClientDetailPage = {
 
             <!-- Loop Configuration Modal -->
             ${this.renderLoopConfigModal()}
+
+            <!-- QR Code View Modal -->
+            ${this.renderQRCodeModal()}
+        `;
+    },
+
+    renderQRCodeModal() {
+        return `
+            <div class="modal-overlay" id="qrCodeModal">
+                <div class="modal modal-md">
+                    <div class="modal-header">
+                        <h3>QR Code</h3>
+                        <span class="modal-close" data-modal="qrCodeModal">&times;</span>
+                    </div>
+                    <div class="modal-body">
+                        <div class="qr-modal-toolbar">
+                            <button class="btn btn-primary btn-sm" id="generateNewQRBtn">Generate New QR Code</button>
+                            <button class="btn btn-primary btn-sm" id="printQRBtn">Print</button>
+                        </div>
+                        <div class="qr-modal-content">
+                            <p class="qr-loop-name"><strong>Loop Name:</strong> <span id="qrLoopNameText"></span></p>
+                            <div class="qr-image-container">
+                                <img id="qrCodeImage" src="" alt="QR Code">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-outline" id="closeQRModalBtn">Close</button>
+                    </div>
+                </div>
+            </div>
         `;
     },
 
@@ -767,13 +797,20 @@ const ClientDetailPage = {
                             </div>
                             <div class="form-group">
                                 <label class="form-label">Loop Mode <span class="required">*</span></label>
-                                <div class="loop-mode-toggle three-options">
-                                    <input type="radio" id="modeNormal" name="loopMode" value="normal" ${!isEdit || editLoop.mode === 'normal' ? 'checked' : ''}>
-                                    <label for="modeNormal">Interval Based</label>
-                                    <input type="radio" id="modeAdvanced" name="loopMode" value="advanced" ${isEdit && editLoop.mode === 'advanced' ? 'checked' : ''}>
-                                    <label for="modeAdvanced">Option A</label>
-                                    <input type="radio" id="modeSingleTime" name="loopMode" value="single_time" ${isEdit && editLoop.mode === 'single_time' ? 'checked' : ''}>
-                                    <label for="modeSingleTime">Option B</label>
+                                <div class="loop-mode-and-point-type">
+                                    <div class="loop-mode-toggle">
+                                        <input type="radio" id="modeNormal" name="loopMode" value="normal" ${!isEdit || editLoop.mode === 'normal' ? 'checked' : ''}>
+                                        <label for="modeNormal">Interval Based</label>
+                                        <input type="radio" id="modeAdvanced" name="loopMode" value="advanced" ${isEdit && editLoop.mode === 'advanced' ? 'checked' : ''}>
+                                        <label for="modeAdvanced">Schedule Based</label>
+                                    </div>
+                                    <div class="loop-point-type-inline">
+                                        <span class="point-type-label">Point Type</span>
+                                        <label class="checkbox-label">
+                                            <input type="checkbox" id="loopPointTypeQR" ${!isEdit || editLoop.pointTypeQR !== false ? 'checked' : ''}>
+                                            <span>QR Code</span>
+                                        </label>
+                                    </div>
                                 </div>
                                 <p class="field-hint" id="modeHint">Scans are expected at cumulative intervals after loop starts</p>
                             </div>
@@ -785,10 +822,10 @@ const ClientDetailPage = {
                                 <span>Loop Settings</span>
                             </div>
                             <div class="loop-config-row three-cols">
-                                <div class="form-group">
+                                <div class="form-group" id="loopMultipleGroup" ${isEdit && editLoop.mode === 'advanced' ? 'style="display:none;"' : ''}>
                                     <label class="form-label">Loop Multiple <span class="required">*</span></label>
-                                    <input type="number" class="form-input" id="loopMultiple" min="0" value="${isEdit ? (editLoop.loopMultiple || 1) : 1}">
-                                    <p class="field-hint">How many times this loop can repeat in a shift. 0 = runs once, 1+ = can restart after completion.</p>
+                                    <input type="number" class="form-input" id="loopMultiple" min="0" value="${isEdit ? (editLoop.loopMultiple || 0) : 0}">
+                                    <p class="field-hint">How many times this loop can repeat in a shift. 0 = single run, 1+ = can restart after completion.</p>
                                 </div>
                                 <div class="form-group">
                                     <label class="form-label">Reward Point</label>
@@ -853,10 +890,10 @@ const ClientDetailPage = {
                             </div>
                         </div>
 
-                        <!-- Option A Mode Fields (Time Slots) -->
+                        <!-- Schedule Based Mode Fields (Time Slots) -->
                         <div id="advancedFields" class="loop-config-section ${!isEdit || editLoop.mode !== 'advanced' ? 'hidden' : ''}">
                             <div class="section-divider">
-                                <span>Option A Settings</span>
+                                <span>Schedule Based Settings</span>
                                 <button class="btn btn-sm btn-outline" type="button" id="addAreaAdvancedBtn">+ Add New</button>
                             </div>
                             <p class="field-hint section-hint">Define multiple time slots for each day when scans should occur. Enable a day and add time windows.</p>
@@ -868,20 +905,6 @@ const ClientDetailPage = {
                             </div>
                         </div>
 
-                        <!-- Option B Mode Fields (Single Time Window per Day) -->
-                        <div id="singleTimeFields" class="loop-config-section ${!isEdit || editLoop.mode !== 'single_time' ? 'hidden' : ''}">
-                            <div class="section-divider">
-                                <span>Option B Settings</span>
-                                <button class="btn btn-sm btn-outline" type="button" id="addAreaSingleTimeBtn">+ Add New</button>
-                            </div>
-                            <p class="field-hint section-hint">Set a single time window for each day when scan should occur. Enable a day and set the time range.</p>
-                            <div id="singleTimeAreaList">
-                                <!-- Dynamic area cards will be inserted here -->
-                            </div>
-                            <div id="noAreasSingleTime" class="no-areas-message">
-                                Click "+ Add New" to configure fixed scan times by day
-                            </div>
-                        </div>
                     </div>
                     <div class="modal-footer">
                         <button class="btn btn-outline" id="cancelLoopConfigBtn">Cancel</button>
@@ -909,8 +932,7 @@ const ClientDetailPage = {
             editingLoopId: null,
             mode: 'normal',
             normalAreas: [],
-            advancedAreas: [],
-            singleTimeAreas: []
+            advancedAreas: []
         };
     },
 
@@ -920,7 +942,6 @@ const ClientDetailPage = {
         this.loopConfigState.mode = loop.mode || 'normal';
         this.loopConfigState.normalAreas = loop.normalAreas ? JSON.parse(JSON.stringify(loop.normalAreas)) : [];
         this.loopConfigState.advancedAreas = loop.advancedAreas ? JSON.parse(JSON.stringify(loop.advancedAreas)) : [];
-        this.loopConfigState.singleTimeAreas = loop.singleTimeAreas ? JSON.parse(JSON.stringify(loop.singleTimeAreas)) : [];
     },
 
     createAdvancedAreaConfig(areaId, areaName) {
@@ -935,18 +956,6 @@ const ClientDetailPage = {
         return { id, areaId, areaName, dayConfig };
     },
 
-    createSingleTimeAreaConfig(areaId, areaName) {
-        const id = this.uid();
-        const dayConfig = {};
-        this.DAYS.forEach(d => {
-            dayConfig[d.key] = {
-                enabled: false,
-                startTime: '09:00',
-                endTime: '17:00'
-            };
-        });
-        return { id, areaId, areaName, dayConfig };
-    },
 
     renderNormalAreasTable() {
         const tbody = document.getElementById('normalAreaRows');
@@ -1078,140 +1087,6 @@ const ClientDetailPage = {
                 </div>
             </div>
         `;
-    },
-
-    // ========== SINGLE TIME (FIXED TIME) MODE ==========
-    renderSingleTimeAreasList() {
-        const container = document.getElementById('singleTimeAreaList');
-        const noAreasMsg = document.getElementById('noAreasSingleTime');
-        if (!container) return;
-
-        const areas = this.loopConfigState.singleTimeAreas;
-        const availableAreas = this.getAvailableAreasForLocation();
-
-        if (areas.length === 0) {
-            container.innerHTML = '';
-            noAreasMsg?.classList.remove('hidden');
-            return;
-        }
-
-        noAreasMsg?.classList.add('hidden');
-
-        container.innerHTML = areas.map(area => `
-            <div class="advanced-area-card" data-area-id="${area.id}">
-                <div class="advanced-area-header">
-                    <div class="advanced-area-left">
-                        <span>Area:</span>
-                        <select class="form-select area-select-single-time" data-area-id="${area.id}">
-                            ${availableAreas.map(a => `<option value="${a.id}" ${a.id === area.areaId ? 'selected' : ''}>${a.name}</option>`).join('')}
-                        </select>
-                    </div>
-                    <div class="advanced-area-right">
-                        <button class="btn btn-sm btn-danger remove-single-time-area" data-area-id="${area.id}" type="button">Remove</button>
-                    </div>
-                </div>
-                <div class="days-scroll">
-                    <div class="days-grid">
-                        ${this.DAYS.map(d => this.renderSingleTimeDayCard(area, d.key, d.label)).join('')}
-                    </div>
-                </div>
-            </div>
-        `).join('');
-
-        this.bindSingleTimeAreaEvents();
-    },
-
-    renderSingleTimeDayCard(area, dayKey, dayLabel) {
-        const cfg = area.dayConfig[dayKey];
-
-        return `
-            <div class="day-card ${!cfg.enabled ? 'day-disabled' : ''}" data-area-id="${area.id}" data-day="${dayKey}">
-                <div class="day-header">
-                    <span class="day-title">${dayLabel}</span>
-                    <input type="checkbox" class="single-time-day-checkbox" ${cfg.enabled ? 'checked' : ''}>
-                </div>
-                <div class="single-time-box">
-                    <div class="slot-header">
-                        <span>Time Window</span>
-                    </div>
-                    <div class="single-time-input-wrap">
-                        <input type="time" class="form-input single-time-start" value="${cfg.startTime || '09:00'}" ${!cfg.enabled ? 'disabled' : ''}>
-                        <span class="time-separator">to</span>
-                        <input type="time" class="form-input single-time-end" value="${cfg.endTime || '17:00'}" ${!cfg.enabled ? 'disabled' : ''}>
-                    </div>
-                </div>
-            </div>
-        `;
-    },
-
-    bindSingleTimeAreaEvents() {
-        const container = document.getElementById('singleTimeAreaList');
-        if (!container) return;
-
-        // Area select change
-        container.querySelectorAll('.area-select-single-time').forEach(select => {
-            select.addEventListener('change', (e) => {
-                const areaId = e.target.getAttribute('data-area-id');
-                const area = this.loopConfigState.singleTimeAreas.find(a => a.id === areaId);
-                if (area) {
-                    area.areaId = parseInt(e.target.value);
-                    area.areaName = e.target.options[e.target.selectedIndex].text;
-                }
-            });
-        });
-
-        // Remove area
-        container.querySelectorAll('.remove-single-time-area').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const areaId = e.target.getAttribute('data-area-id');
-                this.loopConfigState.singleTimeAreas = this.loopConfigState.singleTimeAreas.filter(a => a.id !== areaId);
-                this.renderSingleTimeAreasList();
-            });
-        });
-
-        // Day enable checkbox
-        container.querySelectorAll('.single-time-day-checkbox').forEach(checkbox => {
-            checkbox.addEventListener('change', (e) => {
-                const dayCard = e.target.closest('.day-card');
-                const areaId = dayCard.getAttribute('data-area-id');
-                const dayKey = dayCard.getAttribute('data-day');
-                const area = this.loopConfigState.singleTimeAreas.find(a => a.id === areaId);
-                if (area) {
-                    area.dayConfig[dayKey].enabled = e.target.checked;
-                    dayCard.classList.toggle('day-disabled', !e.target.checked);
-                    const startInput = dayCard.querySelector('.single-time-start');
-                    const endInput = dayCard.querySelector('.single-time-end');
-                    if (startInput) startInput.disabled = !e.target.checked;
-                    if (endInput) endInput.disabled = !e.target.checked;
-                }
-            });
-        });
-
-        // Start time input change
-        container.querySelectorAll('.single-time-start').forEach(input => {
-            input.addEventListener('change', (e) => {
-                const dayCard = e.target.closest('.day-card');
-                const areaId = dayCard.getAttribute('data-area-id');
-                const dayKey = dayCard.getAttribute('data-day');
-                const area = this.loopConfigState.singleTimeAreas.find(a => a.id === areaId);
-                if (area) {
-                    area.dayConfig[dayKey].startTime = e.target.value;
-                }
-            });
-        });
-
-        // End time input change
-        container.querySelectorAll('.single-time-end').forEach(input => {
-            input.addEventListener('change', (e) => {
-                const dayCard = e.target.closest('.day-card');
-                const areaId = dayCard.getAttribute('data-area-id');
-                const dayKey = dayCard.getAttribute('data-day');
-                const area = this.loopConfigState.singleTimeAreas.find(a => a.id === areaId);
-                if (area) {
-                    area.dayConfig[dayKey].endTime = e.target.value;
-                }
-            });
-        });
     },
 
     bindAdvancedAreaEvents() {
@@ -1724,6 +1599,9 @@ const ClientDetailPage = {
                 if (modalId === 'loopConfigModal') {
                     this.resetLoopConfigState();
                 }
+                if (modalId === 'qrCodeModal') {
+                    this.currentQRLoop = null;
+                }
             });
         });
 
@@ -1737,6 +1615,11 @@ const ClientDetailPage = {
                     newLoop.id = Date.now();
                     newLoop.name = `${loop.name} (Copy)`;
                     newLoop.createdAt = new Date().toISOString();
+                    // Generate new QR code for the copy
+                    if (newLoop.pointTypeQR) {
+                        const qrText = `LOOP:${newLoop.id}:${newLoop.name}:${this.clientData?.business || ''}:${this.selectedLocation?.name || ''}`;
+                        newLoop.qrCodeData = QRCodeGenerator.generate(qrText, 300);
+                    }
                     this.loopsData.push(newLoop);
                     this.saveLoopsData(this.selectedLocation.id);
                     this.render();
@@ -1758,27 +1641,22 @@ const ClientDetailPage = {
 
                     // Populate form fields
                     document.getElementById('loopName').value = loop.name || '';
-                    document.getElementById('loopMultiple').value = loop.loopMultiple || 1;
+                    document.getElementById('loopMultiple').value = loop.loopMultiple || 0;
                     document.getElementById('rewardPoint').value = loop.rewardPoint || 10;
                     document.getElementById('loopBuffer').value = loop.loopBuffer || 5;
+                    document.getElementById('loopPointTypeQR').checked = loop.pointTypeQR !== false;
 
                     if (loop.mode === 'advanced') {
                         document.getElementById('modeAdvanced').checked = true;
                         document.getElementById('normalFields').classList.add('hidden');
                         document.getElementById('advancedFields').classList.remove('hidden');
-                        document.getElementById('singleTimeFields').classList.add('hidden');
-                    } else if (loop.mode === 'single_time') {
-                        document.getElementById('modeSingleTime').checked = true;
-                        document.getElementById('normalFields').classList.add('hidden');
-                        document.getElementById('advancedFields').classList.add('hidden');
-                        document.getElementById('singleTimeFields').classList.remove('hidden');
+                        document.getElementById('loopMultipleGroup').style.display = 'none';
                     } else {
                         document.getElementById('modeNormal').checked = true;
                     }
 
                     this.renderNormalAreasTable();
                     this.renderAdvancedAreasList();
-                    this.renderSingleTimeAreasList();
                     this.bindLoopConfigEvents();
                 }
             });
@@ -1796,6 +1674,72 @@ const ClientDetailPage = {
                     App.showToast('Loop deleted successfully!', 'success');
                 }
             });
+        });
+
+        // Loop actions - View QR Code
+        document.querySelectorAll('[data-action="view-qr"]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.getAttribute('data-id');
+                const loop = this.loopsData.find(l => l.id == id);
+                if (loop && loop.qrCodeData) {
+                    this.currentQRLoop = loop;
+                    document.getElementById('qrLoopNameText').textContent = loop.name;
+                    document.getElementById('qrCodeImage').src = loop.qrCodeData;
+                    App.showModal('qrCodeModal');
+                }
+            });
+        });
+
+        // QR Modal - Generate New QR Code
+        document.getElementById('generateNewQRBtn')?.addEventListener('click', () => {
+            if (this.currentQRLoop) {
+                const loop = this.currentQRLoop;
+                const qrText = `LOOP:${loop.id}:${loop.name}:${this.clientData?.business || ''}:${this.selectedLocation?.name || ''}:${Date.now()}`;
+                loop.qrCodeData = QRCodeGenerator.generate(qrText, 300);
+                document.getElementById('qrCodeImage').src = loop.qrCodeData;
+
+                // Save updated QR to storage
+                const index = this.loopsData.findIndex(l => l.id === loop.id);
+                if (index !== -1) {
+                    this.loopsData[index] = loop;
+                    this.saveLoopsData(this.selectedLocation.id);
+                }
+                App.showToast('New QR Code generated!', 'success');
+            }
+        });
+
+        // QR Modal - Print
+        document.getElementById('printQRBtn')?.addEventListener('click', () => {
+            if (this.currentQRLoop && this.currentQRLoop.qrCodeData) {
+                const printWindow = window.open('', '_blank', 'width=500,height=600');
+                printWindow.document.write(`
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <title>QR Code - ${this.currentQRLoop.name}</title>
+                        <style>
+                            body { font-family: Arial, sans-serif; text-align: center; padding: 40px; }
+                            h2 { color: #333; margin-bottom: 5px; }
+                            p { color: #666; margin-bottom: 30px; font-size: 14px; }
+                            img { max-width: 350px; }
+                        </style>
+                    </head>
+                    <body>
+                        <h2>${this.currentQRLoop.name}</h2>
+                        <p>Loop QR Code</p>
+                        <img src="${this.currentQRLoop.qrCodeData}" alt="QR Code">
+                        <script>window.onload = function() { window.print(); }<\/script>
+                    </body>
+                    </html>
+                `);
+                printWindow.document.close();
+            }
+        });
+
+        // QR Modal - Close
+        document.getElementById('closeQRModalBtn')?.addEventListener('click', () => {
+            App.hideModal('qrCodeModal');
+            this.currentQRLoop = null;
         });
 
         // ========== AREA TAB EVENTS ==========
@@ -1886,12 +1830,12 @@ const ClientDetailPage = {
     },
 
     bindLoopConfigEvents() {
-        // Mode toggle (Interval Based / Option A / Option B)
+        // Mode toggle (Interval Based / Schedule Based)
         document.getElementById('modeNormal')?.addEventListener('change', () => {
             this.loopConfigState.mode = 'normal';
             document.getElementById('normalFields').classList.remove('hidden');
             document.getElementById('advancedFields').classList.add('hidden');
-            document.getElementById('singleTimeFields').classList.add('hidden');
+            document.getElementById('loopMultipleGroup').style.display = '';
             document.getElementById('modeHint').textContent = 'Scans are expected at cumulative intervals after loop starts';
         });
 
@@ -1899,18 +1843,9 @@ const ClientDetailPage = {
             this.loopConfigState.mode = 'advanced';
             document.getElementById('normalFields').classList.add('hidden');
             document.getElementById('advancedFields').classList.remove('hidden');
-            document.getElementById('singleTimeFields').classList.add('hidden');
-            document.getElementById('modeHint').textContent = 'Option A: Define multiple time slots for each day when scans should occur';
+            document.getElementById('loopMultipleGroup').style.display = 'none';
+            document.getElementById('modeHint').textContent = 'Define specific time windows for each day of the week when scans must be performed';
             this.renderAdvancedAreasList();
-        });
-
-        document.getElementById('modeSingleTime')?.addEventListener('change', () => {
-            this.loopConfigState.mode = 'single_time';
-            document.getElementById('normalFields').classList.add('hidden');
-            document.getElementById('advancedFields').classList.add('hidden');
-            document.getElementById('singleTimeFields').classList.remove('hidden');
-            document.getElementById('modeHint').textContent = 'Option B: Set a single time window for each day when scan should occur';
-            this.renderSingleTimeAreasList();
         });
 
 
@@ -1986,20 +1921,6 @@ const ClientDetailPage = {
             this.renderAdvancedAreasList();
         });
 
-        // Add Area for Single Time mode - directly add first area
-        document.getElementById('addAreaSingleTimeBtn')?.addEventListener('click', () => {
-            const availableAreas = this.getAvailableAreasForLocation();
-            if (availableAreas.length === 0) {
-                App.showToast('No areas available for this location', 'warning');
-                return;
-            }
-            // Get the first area from the list
-            const firstArea = availableAreas[0];
-            this.loopConfigState.singleTimeAreas.push(
-                this.createSingleTimeAreaConfig(firstArea.id, firstArea.name)
-            );
-            this.renderSingleTimeAreasList();
-        });
     },
 
     handleSaveLoopConfig() {
@@ -2022,31 +1943,43 @@ const ClientDetailPage = {
             return;
         }
 
-        if (mode === 'single_time' && this.loopConfigState.singleTimeAreas.length === 0) {
-            App.showToast('Please add at least one area', 'error');
-            return;
+        const pointTypeQR = document.getElementById('loopPointTypeQR')?.checked !== false;
+        const loopId = this.loopConfigState.isEdit ? this.loopConfigState.editingLoopId : Date.now();
+
+        // Get existing QR data if editing
+        const existingLoop = this.loopConfigState.isEdit ?
+            this.loopsData.find(l => l.id === this.loopConfigState.editingLoopId) : null;
+
+        // Generate QR code if Point Type QR is checked
+        let qrCodeData = existingLoop?.qrCodeData || null;
+        if (pointTypeQR && !qrCodeData) {
+            const qrText = `LOOP:${loopId}:${loopName}:${this.clientData?.business || ''}:${this.selectedLocation?.name || ''}`;
+            qrCodeData = QRCodeGenerator.generate(qrText, 300);
+        } else if (!pointTypeQR) {
+            qrCodeData = null;
         }
 
         const loopData = {
-            id: this.loopConfigState.isEdit ? this.loopConfigState.editingLoopId : Date.now(),
+            id: loopId,
             name: loopName,
             mode: mode,
-            loopMultiple: parseInt(document.getElementById('loopMultiple')?.value) || 1,
+            pointTypeQR: pointTypeQR,
+            qrCodeData: qrCodeData,
             rewardPoint: parseInt(document.getElementById('rewardPoint')?.value) || 10,
             loopBuffer: parseInt(document.getElementById('loopBuffer')?.value) || 5,
             status: 'active',
             createdAt: this.loopConfigState.isEdit ?
-                (this.loopsData.find(l => l.id === this.loopConfigState.editingLoopId)?.createdAt || new Date().toISOString()) :
+                (existingLoop?.createdAt || new Date().toISOString()) :
                 new Date().toISOString(),
             updatedAt: new Date().toISOString()
         };
 
         if (mode === 'normal') {
             loopData.normalAreas = this.loopConfigState.normalAreas;
+            loopData.loopMultiple = parseInt(document.getElementById('loopMultiple')?.value) || 0;
         } else if (mode === 'advanced') {
             loopData.advancedAreas = this.loopConfigState.advancedAreas;
-        } else if (mode === 'single_time') {
-            loopData.singleTimeAreas = this.loopConfigState.singleTimeAreas;
+            loopData.loopMultiple = 0; // Not applicable for Schedule Based
         }
 
         if (this.loopConfigState.isEdit) {

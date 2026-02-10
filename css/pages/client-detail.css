@@ -309,6 +309,70 @@
     background: var(--bg-light);
 }
 
+/* Loop QR Badge Button */
+.loop-qr-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    font-size: 16px;
+    font-weight: 700;
+    color: white;
+    background: var(--primary-color);
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0;
+}
+
+.loop-qr-badge:hover {
+    background: #5b4bd5;
+    transform: scale(1.08);
+    box-shadow: 0 2px 8px rgba(108, 92, 231, 0.35);
+}
+
+/* QR Code Modal */
+.qr-modal-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 20px;
+}
+
+.qr-modal-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 10px 0;
+}
+
+.qr-loop-name {
+    font-size: 15px;
+    color: var(--text-dark);
+    margin-bottom: 20px;
+}
+
+.qr-loop-name strong {
+    color: #555;
+}
+
+.qr-image-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.qr-image-container img {
+    max-width: 300px;
+    max-height: 300px;
+    image-rendering: pixelated;
+}
+
 /* Point Type Badges */
 .point-type-badges {
     display: flex;
@@ -455,9 +519,6 @@
     background: var(--bg-white);
 }
 
-.loop-mode-toggle.three-options {
-    flex-wrap: wrap;
-}
 
 .loop-mode-toggle input {
     display: none;
@@ -484,55 +545,50 @@
     color: white;
 }
 
-/* Single Time Input Box */
-.single-time-box {
-    background: #f8f9fa;
-    border: 1px solid var(--border-color);
-    border-radius: 10px;
-    padding: 12px;
-    flex: 1;
+/* Loop Mode + Point Type inline wrapper */
+.loop-mode-and-point-type {
     display: flex;
-    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+    flex-wrap: wrap;
+}
+
+.loop-point-type-inline {
+    display: flex;
+    align-items: center;
     gap: 10px;
 }
 
-.single-time-input-wrap {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-}
-
-.single-time-input-wrap .time-separator {
+.loop-point-type-inline .point-type-label {
     font-size: 13px;
-    color: #666;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.loop-point-type-inline .checkbox-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
     font-weight: 500;
-    flex-shrink: 0;
-}
-
-.single-time-start,
-.single-time-end {
-    flex: 1;
-    padding: 10px 6px;
-    font-size: 14px;
-    text-align: center;
-    border: 1px solid var(--border-color);
+    color: var(--text-dark);
+    cursor: pointer;
+    user-select: none;
+    background: var(--bg-light);
+    padding: 8px 14px;
     border-radius: 8px;
-    background: #fff;
-    min-width: 0;
+    border: 1px solid var(--border-color);
+    transition: all 0.2s;
 }
 
-.single-time-start:focus,
-.single-time-end:focus {
-    outline: none;
+.loop-point-type-inline .checkbox-label:hover {
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.1);
 }
 
-.single-time-start:disabled,
-.single-time-end:disabled {
-    background: #f1f1f1;
-    color: #999;
+.loop-point-type-inline .checkbox-label input[type="checkbox"] {
+    accent-color: var(--primary-color);
+    width: 16px;
+    height: 16px;
 }
 
 .loop-rule-wrap {
@@ -1100,10 +1156,6 @@
     color: #7b1fa2;
 }
 
-.loop-mode-badge.single-time {
-    background: #e8f5e9;
-    color: #2e7d32;
-}
 
 .loop-rule-badge {
     display: inline-block;

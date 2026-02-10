@@ -62,6 +62,11 @@
     border-top: 1px solid var(--border-color);
 }
 
+/* Modal Medium */
+.modal-md {
+    max-width: 500px;
+}
+
 /* Modal Large */
 .modal-lg {
     max-width: 600px;
