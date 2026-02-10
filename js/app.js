@@ -11,6 +11,7 @@ const App = {
     clientLocationsData: null,
     clientAreasData: null,
     qrCodeData: null,
+    html5QrcodeScanner: null,
     shiftTimerInterval: null,
     basePath: '',
 
@@ -128,6 +129,7 @@ const App = {
             const qrModal = document.createElement('div');
             qrModal.innerHTML = Components.qrScannerModal();
             body.appendChild(qrModal);
+            this.bindScannerModalEvents();
         }
     },
 
@@ -257,52 +259,150 @@ const App = {
         // Hide main "Start Shift" button and show timer
         const startShiftNavBtn = document.getElementById('startShift');
         startShiftNavBtn.style.display = 'none';
+
+        const timerDisplay = document.createElement('div');
+        timerDisplay.id = 'navShiftTimer';
+        timerDisplay.className = 'nav-shift-timer';
+        startShiftNavBtn.parentNode.insertBefore(timerDisplay, startShiftNavBtn.nextSibling);
+
+        timerDisplay.addEventListener('click', () => {
+            const shiftPanel = document.getElementById('startShiftPanel');
+            if (shiftPanel) {
+                shiftPanel.classList.add('show');
+            }
+        });
+
+        // Start timer
+        this.shiftTimerInterval = setInterval(() => {
+            const now = new Date();
+            const diff = now - startTime;
+
+            const hours = Math.floor(diff / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+            const durationStr = `${String(hours).padStart(2, '0')} Hrs: ${String(minutes).padStart(2, '0')} Mins`;
+            const timerStr = `⏱️ ${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+
+            if(document.getElementById('shiftDuration')) {
+                document.getElementById('shiftDuration').textContent = durationStr;
+            }
+            timerDisplay.textContent = timerStr;
+
+        }, 1000);
+    },
+
+    bindScannerModalEvents() {
+        const qrScannerModal = document.getElementById('qrScannerModal');
+        const closeModalBtns = qrScannerModal.querySelectorAll('.modal-close');
+
+        closeModalBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.hideModal('qrScannerModal');
+                this.stopQrScanner();
+            });
+        });
+
+        qrScannerModal?.addEventListener('click', (e) => {
+            if (e.target === qrScannerModal) {
+                this.hideModal('qrScannerModal');
+                this.stopQrScanner();
+            }
+        });
     },
 
     startQrScanner() {
-        const qrCodeSuccessCallback = (decodedText, decodedResult) => {
-            const resultContainer = document.getElementById('qr-scan-result');
-            const foundQr = this.qrCodeData.codes.find(c => c.qrId === decodedText);
+        const resultContainer = document.getElementById('qr-scan-result');
+        resultContainer.style.display = 'none';
+        resultContainer.innerHTML = '';
 
-            if (foundQr) {
-                const scanDetails = AppData.scanMaster.data.find(s => s.id === foundQr.scanMasterId);
-                if (scanDetails) {
-                    resultContainer.innerHTML = `
-                        <h4>Scan Successful!</h4>
-                        <p><b>Scan Name:</b> ${scanDetails.name}</p>
-                        <p><b>Frequency:</b> ${scanDetails.frequency}</p>
-                        <p><b>QR ID:</b> ${decodedText}</p>
-                    `;
-                    resultContainer.style.display = 'block';
-                    this.showToast('QR Code Verified!', 'success');
-                } else {
-                    resultContainer.innerHTML = `<p class="text-danger">QR Code found, but no matching scan details.</p>`;
-                    resultContainer.style.display = 'block';
+        if (!this.html5QrcodeScanner) {
+            this.html5QrcodeScanner = new Html5QrcodeScanner(
+                "qr-reader",
+                { fps: 10, qrbox: { width: 250, height: 250 } },
+                /* verbose= */ false
+            );
+        }
+
+        this.html5QrcodeScanner.render(
+            (decodedText, decodedResult) => this.onScanSuccess(decodedText, decodedResult),
+            (errorMessage) => this.onScanFailure(errorMessage)
+        );
+    },
+
+    stopQrScanner() {
+        if (this.html5QrcodeScanner) {
+            this.html5QrcodeScanner.clear().catch(error => {
+                // HACK: Ignore "not found" error, which happens when the scanner is already cleared
+                if (!error.message.includes("not found")) {
+                    console.error("Failed to clear html5QrcodeScanner.", error);
                 }
-            } else {
-                resultContainer.innerHTML = `<p class="text-danger">Invalid QR Code: ${decodedText}</p>`;
-                resultContainer.style.display = 'block';
-                this.showToast('Invalid QR Code.', 'error');
+            });
+        }
+    },
+
+    onScanSuccess(decodedText, decodedResult) {
+        this.stopQrScanner();
+
+        const resultContainer = document.getElementById('qr-scan-result');
+        const foundScan = AppData.scanMaster.data.find(s => s.qrId === decodedText);
+
+        if (foundScan) {
+            // Find the loop this scan is part of
+            let foundLoop = null;
+            for (const key in AppData.locationLoops) {
+                const loop = AppData.locationLoops[key].find(l => l.scanMasterId === foundScan.id);
+                if (loop) {
+                    foundLoop = loop;
+                    break;
+                }
+            }
+            if (!foundLoop) {
+                for (const key in AppData.areaLoops) {
+                    const loop = AppData.areaLoops[key].find(l => l.scanMasterId === foundScan.id);
+                    if (loop) {
+                        foundLoop = loop;
+                        break;
+                    }
+                }
             }
 
-            // Stop the scanner
-            html5QrcodeScanner.clear().catch(error => {
-                console.error("Failed to clear html5QrcodeScanner.", error);
-            });
-        };
+            let loopDetails = '';
+            if (foundLoop) {
+                loopDetails = `
+                    <hr>
+                    <h5>Assigned Loop Details:</h5>
+                    <p><b>Loop Name:</b> ${foundLoop.name}</p>
+                    <p><b>Frequency:</b> ${foundLoop.frequency}</p>
+                    <p><b>Assigned at:</b> ${new Date(foundLoop.assignedAt).toLocaleString()}</p>
+                `;
+            }
 
-        const qrCodeErrorCallback = (errorMessage) => {
-            // handle scan failure, usually better to ignore and keep scanning.
-            // console.error(`QR Code no longer in front of camera.`);
-        };
+            resultContainer.innerHTML = `
+                <h4>Scan Successful!</h4>
+                <p><b>Scan Name:</b> ${foundScan.name}</p>
+                <p><b>Frequency:</b> ${foundScan.frequency}</p>
+                <p><b>QR ID:</b> ${decodedText}</p>
+                ${loopDetails}
+            `;
+            resultContainer.style.display = 'block';
+            this.showToast('QR Code Verified!', 'success');
+        } else {
+            resultContainer.innerHTML = `<p class="text-danger">Invalid QR Code Scanned.</p>`;
+            resultContainer.style.display = 'block';
+            this.showToast('Invalid QR Code.', 'error');
+        }
 
-        const html5QrcodeScanner = new Html5QrcodeScanner(
-            "qr-reader", 
-            { fps: 10, qrbox: {width: 250, height: 250} }, 
-            /* verbose= */ false);
-
-        html5QrcodeScanner.render(qrCodeSuccessCallback, qrCodeErrorCallback);
+        setTimeout(() => {
+            this.hideModal('qrScannerModal');
+        }, 3000);
     },
+
+    onScanFailure(errorMessage) {
+        // This callback is called frequently, so we'll keep it quiet.
+    },
+
+
 
 
     populateLocations(businessId) {
